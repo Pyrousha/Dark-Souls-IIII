@@ -9,7 +9,7 @@ public class InputHandler : Singleton<InputHandler>
     private enum ButtonIndices
     {
         Jump = 0,
-        Shoot = 1,
+        Sprint = 1,
         Explode = 2,
         Slam = 3,
         Restart = 4,
@@ -37,9 +37,9 @@ public class InputHandler : Singleton<InputHandler>
     {
         get { return buttons[(int)ButtonIndices.Jump]; }
     }
-    public ButtonState Shoot
+    public ButtonState Sprint
     {
-        get { return buttons[(int)ButtonIndices.Shoot]; }
+        get { return buttons[(int)ButtonIndices.Sprint]; }
     }
     public ButtonState Explode
     {
@@ -106,9 +106,9 @@ public class InputHandler : Singleton<InputHandler>
     {
         buttons[(int)ButtonIndices.Jump].Set(_ctx);
     }
-    public void CTX_Shoot(InputAction.CallbackContext _ctx)
+    public void CTX_Sprint(InputAction.CallbackContext _ctx)
     {
-        buttons[(int)ButtonIndices.Shoot].Set(_ctx);
+        buttons[(int)ButtonIndices.Sprint].Set(_ctx);
     }
     public void CTX_Explode(InputAction.CallbackContext _ctx)
     {
