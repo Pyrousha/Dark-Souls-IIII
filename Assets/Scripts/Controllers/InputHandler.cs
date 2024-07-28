@@ -10,7 +10,7 @@ public class InputHandler : Singleton<InputHandler>
     {
         Jump = 0,
         Sprint = 1,
-        Explode = 2,
+        LockOn = 2,
         Slam = 3,
         Restart = 4,
         Pause = 5,
@@ -41,9 +41,9 @@ public class InputHandler : Singleton<InputHandler>
     {
         get { return buttons[(int)ButtonIndices.Sprint]; }
     }
-    public ButtonState Explode
+    public ButtonState LockOn
     {
-        get { return buttons[(int)ButtonIndices.Explode]; }
+        get { return buttons[(int)ButtonIndices.LockOn]; }
     }
     public ButtonState Slam
     {
@@ -76,8 +76,8 @@ public class InputHandler : Singleton<InputHandler>
         for (int i = 0; i < buttonCount; i++)
             buttons[i].Init(ref IDSRC, this);
 
-        if (SaveData.CurrSaveData.ReboundControls != null)
-            playerInput.actions.LoadBindingOverridesFromJson(SaveData.CurrSaveData.ReboundControls);
+        //if (SaveData.CurrSaveData.ReboundControls != null)
+        //    playerInput.actions.LoadBindingOverridesFromJson(SaveData.CurrSaveData.ReboundControls);
     }
 
     private void FixedUpdate()
@@ -110,9 +110,9 @@ public class InputHandler : Singleton<InputHandler>
     {
         buttons[(int)ButtonIndices.Sprint].Set(_ctx);
     }
-    public void CTX_Explode(InputAction.CallbackContext _ctx)
+    public void CTX_LockOn(InputAction.CallbackContext _ctx)
     {
-        buttons[(int)ButtonIndices.Explode].Set(_ctx);
+        buttons[(int)ButtonIndices.LockOn].Set(_ctx);
     }
     public void CTX_Slam(InputAction.CallbackContext _ctx)
     {
