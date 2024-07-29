@@ -1,3 +1,5 @@
+using System;
+
 public static class Utils
 {
     /// <summary>
@@ -17,5 +19,18 @@ public static class Utils
 
         float targRange = _targetMax - _targetMin;
         return _targetMin + percentFromMin * targRange;
+    }
+
+    public static float MoveTowardsValue(float _currValue, float _targetValue, float _amountToMoveThisIteration)
+    {
+        float dist = MathF.Abs(_targetValue - _currValue);
+        if (dist <= _amountToMoveThisIteration)
+            return _targetValue;
+
+        if (_currValue < _targetValue)
+            return _currValue + _amountToMoveThisIteration;
+
+        //_currvalue is > targetValue
+        return _currValue - _amountToMoveThisIteration;
     }
 }

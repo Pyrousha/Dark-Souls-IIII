@@ -3,13 +3,32 @@ using UnityEngine;
 
 public class PlayerController : MonoBehaviour
 {
-    public enum PlayerStateEnum
+    private enum PlayerStateEnum
     {
         Idle,
         Dashing,
         Attacking
     }
     private PlayerStateEnum state;
+
+    [System.Serializable]
+    private class Speedblock
+    {
+        [field: SerializeField] public float AccelSpeed_ground { get; private set; } = 100;
+        [field: SerializeField] public float AccelSpeed_air { get; private set; } = 50;
+        [field: SerializeField] public float FrictionSpeed_ground { get; private set; } = 50;
+        [field: SerializeField] public float FrictionSpeed_air { get; private set; } = 25;
+        [field: SerializeField] public float MaxSpeed { get; private set; } = 10;
+
+        public void SetValues_Lerp(Speedblock block0, Speedblock block1, float t)
+        {
+            AccelSpeed_ground = Mathf.Lerp(block0.AccelSpeed_ground, block1.AccelSpeed_ground, t);
+            AccelSpeed_air = Mathf.Lerp(block0.AccelSpeed_air, block1.AccelSpeed_air, t);
+            FrictionSpeed_ground = Mathf.Lerp(block0.FrictionSpeed_ground, block1.FrictionSpeed_ground, t);
+            FrictionSpeed_air = Mathf.Lerp(block0.FrictionSpeed_air, block1.FrictionSpeed_air, t);
+            MaxSpeed = Mathf.Lerp(block0.MaxSpeed, block1.MaxSpeed, t);
+        }
+    }
 
     [Header("References")]
     [SerializeField] private CharacterController controller;
@@ -20,6 +39,7 @@ public class PlayerController : MonoBehaviour
     [Space(10)]
     [SerializeField] private UICanvas uiCanvas;
     [SerializeField] private StaminaSlider staminaSlider;
+    [SerializeField] private SpeedSlider speedSlider;
     [Space(5)]
     [SerializeField] private Transform cameraPivot;
     [SerializeField] private Transform camTransform;
@@ -36,66 +56,106 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float gravSpeed;
     [SerializeField] private float jumpSpeed;
     [Space(5)]
-    [SerializeField] private float m_accelSpeed_ground;
-    [SerializeField] private float m_accelSpeed_air;
-    [SerializeField] private float m_frictionSpeed_ground;
-    [SerializeField] private float m_frictionSpeed_air;
-    [SerializeField] private float m_maxSpeed;
-    [SerializeField] private float m_sprintSpeedMultiplier;
+    [SerializeField] private Speedblock lowSpeedblock;
+    [SerializeField] private Speedblock highSpeedblock;
     [Space(5)]
     [SerializeField] private float m_maxStamina;
     [SerializeField] private float m_staminaRechargePerSec;
-    [SerializeField] private float m_staminaRechargeDelay;
+    [SerializeField] private float m_staminaChargeDelay_dash;
     [SerializeField] private float m_sprintCostPerSec;
     [SerializeField] private float m_dashCost;
+    [Space(5)]
+    [SerializeField] private float m_sprintCostPerSpeedState;
+    [SerializeField] private float m_speedLossPerSec;
 
-    private bool isSprinting = false;
+    //Stamina
     private float currStamina;
     private float nextStaminaRechargeTime;
+
+    //Sprint/Speed
+    private bool isSprinting = false;
+    private float currSpeedState = 0;
+    private float maxSpeedState = 3.5f;
+    private Speedblock currSpeedblock = new Speedblock();
+    private float speedGainPerSec;
+    private float nextSpeedDecreaseTime;
     private Routine dashRoutine;
 
+    //Movement
     private Vector3 currVelocity;
     private bool isGrounded;
     private float nextGroundCheckTime;
     private Vector3 groundNormal;
 
-    private int ANIM_PARAM_GROUNDED = Animator.StringToHash("Grounded");
-    private int ANIM_PARAM_SPRINTING = Animator.StringToHash("Sprinting");
-
     [Header("Misc")]
     [SerializeField] private LayerMask groundLayer;
     [SerializeField] private LayerMask cameraWallLayer;
 
+    //Anim parameters
+    private float lastSpeedStatePercent;
+    private int ANIM_PARAM_GROUNDED = Animator.StringToHash("Grounded");
+    private int ANIM_PARAM_SPRINTING = Animator.StringToHash("Sprinting");
+    private int ANIM_PARAM_SPEEDSTATEPERCENT = Animator.StringToHash("SpeedState_Percent");
+
+    private void Awake()
+    {
+        currStamina = m_maxStamina / 2f;
+        speedGainPerSec = (m_sprintCostPerSec / m_sprintCostPerSpeedState);
+    }
+
     private void Start()
     {
         Cursor.lockState = CursorLockMode.Locked;
-
-        currStamina = m_maxSpeed;
     }
-
-
 
     private void Update()
     {
+        GroundCheck();
+
         #region Stamina
         {
+            isSprinting = (InputHandler.Instance.Sprint.Holding && currStamina > 0 && isGrounded
+                && state == PlayerStateEnum.Idle && InputHandler.Instance.MoveXZ.sqrMagnitude > 0.05f);
+            if (isSprinting)
+            {
+                //nextStaminaRechargeTime = Time.time + m_staminaRechargeDelay;
+                currStamina -= m_sprintCostPerSec * Time.deltaTime;
+            }
+
             //Passive Regen
             if (Time.time >= nextStaminaRechargeTime && !isSprinting && state != PlayerStateEnum.Dashing)
             {
                 currStamina = Mathf.Min(currStamina + m_staminaRechargePerSec * Time.deltaTime, m_maxStamina);
             }
 
-            //Check for sprinting state
-            isSprinting = (InputHandler.Instance.Sprint.Holding && currStamina > 0 && state == PlayerStateEnum.Idle);
-            if (isSprinting)
-            {
-                nextStaminaRechargeTime = Time.time + m_staminaRechargeDelay;
-                currStamina -= m_sprintCostPerSec * Time.deltaTime;
-            }
-        }
+            //Update sprint slider ui
+            staminaSlider.Slider.value = (currStamina / m_maxStamina);
 
-        //Update UI
-        staminaSlider.Slider.value = (currStamina / m_maxStamina);
+
+            //Speed state gain
+            if (isSprinting)
+                currSpeedState += speedGainPerSec * Time.deltaTime;
+            else if (Time.time >= nextSpeedDecreaseTime)
+                currSpeedState = Mathf.Max(0, currSpeedState - m_speedLossPerSec * Time.deltaTime);
+
+            currSpeedState = Mathf.Clamp(currSpeedState, 0, maxSpeedState);
+
+            float speedPercent = Mathf.Floor(currSpeedState);
+            if (isSprinting)
+                speedPercent += (1 - speedPercent / 3);
+            speedPercent = Mathf.Clamp(speedPercent / 3f, 0, 1);
+            Debug.Log(speedPercent.ToString());
+
+            currSpeedblock.SetValues_Lerp(lowSpeedblock, highSpeedblock, speedPercent);
+
+            //Update anim parameters
+            lastSpeedStatePercent = Utils.MoveTowardsValue(lastSpeedStatePercent, speedPercent, Time.deltaTime * maxSpeedState);
+            anim.SetFloat(ANIM_PARAM_SPEEDSTATEPERCENT, lastSpeedStatePercent);
+
+
+            //Update speed slider ui
+            speedSlider.SetSliderVisualState(currSpeedState);
+        }
         #endregion
 
         #region Camera Rotation
@@ -126,8 +186,6 @@ public class PlayerController : MonoBehaviour
             HandleMovement(worldInput);
         }
         #endregion
-
-        GroundCheck();
 
         anim.SetBool(ANIM_PARAM_GROUNDED, isGrounded);
         anim.SetBool(ANIM_PARAM_SPRINTING, isSprinting);
@@ -179,12 +237,11 @@ public class PlayerController : MonoBehaviour
         Vector3 modifiedVelocity_noGrav = currVelocity;
         modifiedVelocity_noGrav.y = 0;
 
-        Vector3 targetVelocity = _worldInput * m_maxSpeed;
-        if (isSprinting)
-            targetVelocity *= m_sprintSpeedMultiplier;
 
-        float frictionSpeed = (isGrounded ? m_frictionSpeed_ground : m_frictionSpeed_air) * Time.deltaTime;
-        float accelSpeed = (isGrounded ? m_accelSpeed_ground : m_accelSpeed_air) * Time.deltaTime;
+        Vector3 targetVelocity = _worldInput * currSpeedblock.MaxSpeed;
+
+        float frictionSpeed = (isGrounded ? currSpeedblock.FrictionSpeed_ground : currSpeedblock.FrictionSpeed_air) * Time.deltaTime;
+        float accelSpeed = (isGrounded ? currSpeedblock.AccelSpeed_ground : currSpeedblock.AccelSpeed_air) * Time.deltaTime;
 
         //Apply friction
         modifiedVelocity_noGrav = modifiedVelocity_noGrav.normalized * Mathf.Max(0, modifiedVelocity_noGrav.magnitude - frictionSpeed);
