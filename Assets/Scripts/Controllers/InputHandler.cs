@@ -11,13 +11,14 @@ public class InputHandler : Singleton<InputHandler>
         Jump = 0,
         Sprint = 1,
         LockOn = 2,
-        Slam = 3,
+        Dash = 3,
         Restart = 4,
         Pause = 5,
         Interact = 6,
         NUM_BUTTONS = 7
     }
 
+    public bool PressingDirection { get; private set; }
     public Vector2 MoveXZ
     {
         get;
@@ -45,9 +46,9 @@ public class InputHandler : Singleton<InputHandler>
     {
         get { return buttons[(int)ButtonIndices.LockOn]; }
     }
-    public ButtonState Slam
+    public ButtonState Dash
     {
-        get { return buttons[(int)ButtonIndices.Slam]; }
+        get { return buttons[(int)ButtonIndices.Dash]; }
     }
     public ButtonState Restart
     {
@@ -95,6 +96,7 @@ public class InputHandler : Singleton<InputHandler>
     public void CTX_MoveXZ(InputAction.CallbackContext _ctx)
     {
         MoveXZ = _ctx.ReadValue<Vector2>();
+        PressingDirection = (MoveXZ.sqrMagnitude > 0.05f);
     }
     public void CTX_Look(InputAction.CallbackContext _ctx)
     {
@@ -114,9 +116,9 @@ public class InputHandler : Singleton<InputHandler>
     {
         buttons[(int)ButtonIndices.LockOn].Set(_ctx);
     }
-    public void CTX_Slam(InputAction.CallbackContext _ctx)
+    public void CTX_Dash(InputAction.CallbackContext _ctx)
     {
-        buttons[(int)ButtonIndices.Slam].Set(_ctx);
+        buttons[(int)ButtonIndices.Dash].Set(_ctx);
     }
     public void CTX_Restart(InputAction.CallbackContext _ctx)
     {

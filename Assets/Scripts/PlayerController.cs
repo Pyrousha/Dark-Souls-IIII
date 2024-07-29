@@ -1,4 +1,3 @@
-using BeauRoutine;
 using UnityEngine;
 
 public class PlayerController : MonoBehaviour
@@ -19,6 +18,8 @@ public class PlayerController : MonoBehaviour
         [field: SerializeField] public float FrictionSpeed_ground { get; private set; } = 50;
         [field: SerializeField] public float FrictionSpeed_air { get; private set; } = 25;
         [field: SerializeField] public float MaxSpeed { get; private set; } = 10;
+        [field: SerializeField] public float DashStartSpeed { get; private set; } = 100;
+        [field: SerializeField] public float DashEndSpeed { get; private set; } = 500;
 
         public void SetValues_Lerp(Speedblock block0, Speedblock block1, float t)
         {
@@ -27,6 +28,8 @@ public class PlayerController : MonoBehaviour
             FrictionSpeed_ground = Mathf.Lerp(block0.FrictionSpeed_ground, block1.FrictionSpeed_ground, t);
             FrictionSpeed_air = Mathf.Lerp(block0.FrictionSpeed_air, block1.FrictionSpeed_air, t);
             MaxSpeed = Mathf.Lerp(block0.MaxSpeed, block1.MaxSpeed, t);
+            DashStartSpeed = Mathf.Lerp(block0.DashStartSpeed, block1.DashStartSpeed, t);
+            DashEndSpeed = Mathf.Lerp(block0.DashEndSpeed, block1.DashEndSpeed, t);
         }
     }
 
@@ -67,19 +70,28 @@ public class PlayerController : MonoBehaviour
     [Space(5)]
     [SerializeField] private float m_sprintCostPerSpeedState;
     [SerializeField] private float m_speedLossPerSec;
+    [Space(5)]
+    [SerializeField] private float m_dashDuration;
+    [SerializeField] private float m_waitTimeAfterDash;
 
     //Stamina
+    private float t_nextStaminaRechargeTime;
     private float currStamina;
-    private float nextStaminaRechargeTime;
 
     //Sprint/Speed
+    private float t_nextSpeedDecreaseTime;
     private bool isSprinting = false;
     private float currSpeedState = 0;
     private float maxSpeedState = 3.5f;
     private Speedblock currSpeedblock = new Speedblock();
     private float speedGainPerSec;
-    private float nextSpeedDecreaseTime;
-    private Routine dashRoutine;
+
+    //Dash
+    private float dashStartTime;
+    private float t_dashEndTime;
+    Speedblock dashSpeedblock = new Speedblock();
+    private float currDashingSpeed;
+    private Vector2 dashInputDirection;
 
     //Movement
     private Vector3 currVelocity;
@@ -95,7 +107,10 @@ public class PlayerController : MonoBehaviour
     private float lastSpeedStatePercent;
     private int ANIM_PARAM_GROUNDED = Animator.StringToHash("Grounded");
     private int ANIM_PARAM_SPRINTING = Animator.StringToHash("Sprinting");
-    private int ANIM_PARAM_SPEEDSTATEPERCENT = Animator.StringToHash("SpeedState_Percent");
+    private int ANIM_PARAM_SPEED_STATE_PERCENT = Animator.StringToHash("SpeedState_Percent");
+    private int ANIM_PARAM_DASH_TRIGGER = Animator.StringToHash("Dash");
+    private int ANIM_PARAM_DASH_DIR_X = Animator.StringToHash("DashDirX");
+    private int ANIM_PARAM_DASH_DIR_Y = Animator.StringToHash("DashDirY");
 
     private void Awake()
     {
@@ -108,35 +123,107 @@ public class PlayerController : MonoBehaviour
         Cursor.lockState = CursorLockMode.Locked;
     }
 
+    public Vector3 ConvertInputDirToWorldDir(Vector2 _inputDir)
+    {
+        Vector3 forwardDir = cameraPivot.forward;
+        forwardDir.y = 0;
+        forwardDir.Normalize();
+
+        Vector3 rightDir = cameraPivot.right.normalized;
+
+        return _inputDir.y * forwardDir + _inputDir.x * rightDir;
+    }
+
     private void Update()
     {
         GroundCheck();
 
         #region Stamina
         {
-            isSprinting = (InputHandler.Instance.Sprint.Holding && currStamina > 0 && isGrounded
-                && state == PlayerStateEnum.Idle && InputHandler.Instance.MoveXZ.sqrMagnitude > 0.05f);
+            switch (state)
+            {
+                case PlayerStateEnum.Idle:
+                    if (isGrounded && InputHandler.Instance.Dash.Down && InputHandler.Instance.PressingDirection && currStamina > 0)
+                    {
+                        //Consume stamina
+                        currStamina -= m_dashCost;
+                        staminaSlider.Slider.value = (currStamina / m_maxStamina);
+
+                        //Set velocity
+                        float statePercent = Mathf.Clamp(currSpeedState / 3f, 0, 1);
+                        dashSpeedblock.SetValues_Lerp(lowSpeedblock, highSpeedblock, statePercent);
+                        dashInputDirection = InputHandler.Instance.MoveXZ.normalized;
+                        currSpeedState = Mathf.Clamp(currSpeedState, 0, maxSpeedState);
+                        currVelocity = ConvertInputDirToWorldDir(dashInputDirection) * dashSpeedblock.DashStartSpeed;
+                        currDashingSpeed = dashSpeedblock.DashStartSpeed;
+
+                        //Set state vars and timers
+                        dashStartTime = Time.time;
+                        state = PlayerStateEnum.Dashing;
+                        currSpeedState++;
+                        t_dashEndTime = Time.time + m_dashDuration;
+                        t_nextSpeedDecreaseTime = Mathf.Max(t_nextSpeedDecreaseTime, t_dashEndTime + m_waitTimeAfterDash);
+                        t_nextStaminaRechargeTime = Mathf.Max(t_nextStaminaRechargeTime, t_dashEndTime + m_waitTimeAfterDash);
+
+                        //Set anim params
+                        anim.SetTrigger(ANIM_PARAM_DASH_TRIGGER);
+                        if (uiCanvas.IsLockedOn)
+                        {
+                            anim.SetFloat(ANIM_PARAM_DASH_DIR_X, dashInputDirection.x);
+                            anim.SetFloat(ANIM_PARAM_DASH_DIR_Y, dashInputDirection.y);
+                        }
+                        else
+                        {
+                            anim.SetFloat(ANIM_PARAM_DASH_DIR_X, 0);
+                            anim.SetFloat(ANIM_PARAM_DASH_DIR_Y, 1);
+                        }
+                    }
+                    break;
+
+                case PlayerStateEnum.Dashing:
+                    if (Time.time >= t_dashEndTime)
+                    {
+                        //End Dash
+                        state = PlayerStateEnum.Idle;
+                    }
+                    else
+                    {
+                        //Decelerate
+                        currDashingSpeed = Mathf.Lerp(dashSpeedblock.DashStartSpeed, dashSpeedblock.DashEndSpeed, (Time.time - dashStartTime) / m_dashDuration);
+                        currVelocity = ConvertInputDirToWorldDir(dashInputDirection) * currDashingSpeed;
+                    }
+                    break;
+
+                case PlayerStateEnum.Attacking:
+                    break;
+            }
+
+            isSprinting = ((InputHandler.Instance.Sprint.Holding || InputHandler.Instance.Dash.Holding) && currStamina > 0
+                && isGrounded && state == PlayerStateEnum.Idle && InputHandler.Instance.PressingDirection);
             if (isSprinting)
             {
                 //nextStaminaRechargeTime = Time.time + m_staminaRechargeDelay;
                 currStamina -= m_sprintCostPerSec * Time.deltaTime;
             }
 
-            //Passive Regen
-            if (Time.time >= nextStaminaRechargeTime && !isSprinting && state != PlayerStateEnum.Dashing)
+            if (state == PlayerStateEnum.Idle)
             {
-                currStamina = Mathf.Min(currStamina + m_staminaRechargePerSec * Time.deltaTime, m_maxStamina);
+                //Passive Regen
+                if (Time.time >= t_nextStaminaRechargeTime && !isSprinting && state != PlayerStateEnum.Dashing)
+                {
+                    currStamina = Mathf.Min(currStamina + m_staminaRechargePerSec * Time.deltaTime, m_maxStamina);
+                }
+
+                //Update sprint slider ui
+                staminaSlider.Slider.value = (currStamina / m_maxStamina);
+
+
+                //Speed state gain
+                if (isSprinting)
+                    currSpeedState += speedGainPerSec * Time.deltaTime;
+                else if (Time.time >= t_nextSpeedDecreaseTime)
+                    currSpeedState = Mathf.Max(0, currSpeedState - m_speedLossPerSec * Time.deltaTime);
             }
-
-            //Update sprint slider ui
-            staminaSlider.Slider.value = (currStamina / m_maxStamina);
-
-
-            //Speed state gain
-            if (isSprinting)
-                currSpeedState += speedGainPerSec * Time.deltaTime;
-            else if (Time.time >= nextSpeedDecreaseTime)
-                currSpeedState = Mathf.Max(0, currSpeedState - m_speedLossPerSec * Time.deltaTime);
 
             currSpeedState = Mathf.Clamp(currSpeedState, 0, maxSpeedState);
 
@@ -144,13 +231,12 @@ public class PlayerController : MonoBehaviour
             if (isSprinting)
                 speedPercent += (1 - speedPercent / 3);
             speedPercent = Mathf.Clamp(speedPercent / 3f, 0, 1);
-            Debug.Log(speedPercent.ToString());
 
             currSpeedblock.SetValues_Lerp(lowSpeedblock, highSpeedblock, speedPercent);
 
             //Update anim parameters
             lastSpeedStatePercent = Utils.MoveTowardsValue(lastSpeedStatePercent, speedPercent, Time.deltaTime * maxSpeedState);
-            anim.SetFloat(ANIM_PARAM_SPEEDSTATEPERCENT, lastSpeedStatePercent);
+            anim.SetFloat(ANIM_PARAM_SPEED_STATE_PERCENT, lastSpeedStatePercent);
 
 
             //Update speed slider ui
@@ -181,7 +267,11 @@ public class PlayerController : MonoBehaviour
 
             Vector3 rightDir = cameraPivot.right.normalized;
 
-            Vector3 worldInput = InputHandler.Instance.MoveXZ.y * forwardDir + InputHandler.Instance.MoveXZ.x * rightDir;
+            Vector3 worldInput;
+            if (InputHandler.Instance.PressingDirection)
+                worldInput = InputHandler.Instance.MoveXZ.y * forwardDir + InputHandler.Instance.MoveXZ.x * rightDir;
+            else
+                worldInput = Vector3.zero;
 
             HandleMovement(worldInput);
         }
@@ -224,11 +314,26 @@ public class PlayerController : MonoBehaviour
             currVelocity = Vector3.ProjectOnPlane(currVelocity, hit.normal);
         }
 
+        #region Update facing direciton of player model
+        Enemy lockedOnEnemy = uiCanvas.LockedonEnemy;
+        if (lockedOnEnemy == null || isSprinting)
+        {
+            Vector3 gravitylessVelocity = currVelocity;
+            gravitylessVelocity.y = 0;
+
+            if (gravitylessVelocity.sqrMagnitude > 0.1f)
+                model.forward = gravitylessVelocity.normalized;
+        }
+        else
+        {
+            Vector3 toEnemy = lockedOnEnemy.transform.position - transform.position;
+            toEnemy.y = 0;
+            model.forward = toEnemy.normalized;
+        }
+        #endregion
 
         MoveCameraOutOfWall();
     }
-
-
 
     void HandleMovement(Vector3 _worldInput)
     {
@@ -253,9 +358,6 @@ public class PlayerController : MonoBehaviour
         //Apply new velocity;
         currVelocity = modifiedVelocity_noGrav;
         currVelocity.y = currYVelocity;
-
-        if (modifiedVelocity_noGrav.magnitude > 0.1f)
-            model.forward = modifiedVelocity_noGrav.normalized;
     }
 
 

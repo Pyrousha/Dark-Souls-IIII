@@ -5221,19 +5221,25 @@ MonoBehaviour:
     <FrictionSpeed_ground>k__BackingField: 50
     <FrictionSpeed_air>k__BackingField: 25
     <MaxSpeed>k__BackingField: 10
+    <DashStartSpeed>k__BackingField: 100
+    <DashEndSpeed>k__BackingField: 10
   highSpeedblock:
     <AccelSpeed_ground>k__BackingField: 400
     <AccelSpeed_air>k__BackingField: 150
     <FrictionSpeed_ground>k__BackingField: 100
     <FrictionSpeed_air>k__BackingField: 50
     <MaxSpeed>k__BackingField: 30
+    <DashStartSpeed>k__BackingField: 150
+    <DashEndSpeed>k__BackingField: 30
   m_maxStamina: 400
   m_staminaRechargePerSec: 100
   m_staminaChargeDelay_dash: 0.25
   m_sprintCostPerSec: 100
   m_dashCost: 100
-  m_sprintCostPerSpeedState: 60
-  m_speedLossPerSec: 4.5
+  m_sprintCostPerSpeedState: 90
+  m_speedLossPerSec: 2
+  m_dashDuration: 0.25
+  m_waitTimeAfterDash: 0.5
   groundLayer:
     serializedVersion: 2
     m_Bits: 64
@@ -5425,8 +5431,18 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6070510162224301359, guid: 955152271030a3b48b18f2fd6ace8731,
         type: 3}
+      propertyPath: m_DefaultControlScheme
+      value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 6070510162224301359, guid: 955152271030a3b48b18f2fd6ace8731,
+        type: 3}
       propertyPath: m_ActionEvents.Array.size
-      value: 15
+      value: 16
+      objectReference: {fileID: 0}
+    - target: {fileID: 6070510162224301359, guid: 955152271030a3b48b18f2fd6ace8731,
+        type: 3}
+      propertyPath: m_NeverAutoSwitchControlSchemes
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 6070510162224301359, guid: 955152271030a3b48b18f2fd6ace8731,
         type: 3}
@@ -5445,6 +5461,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6070510162224301359, guid: 955152271030a3b48b18f2fd6ace8731,
         type: 3}
+      propertyPath: m_ActionEvents.Array.data[15].m_ActionId
+      value: d0a942be-24d1-4a84-95ed-b29945f0f456
+      objectReference: {fileID: 0}
+    - target: {fileID: 6070510162224301359, guid: 955152271030a3b48b18f2fd6ace8731,
+        type: 3}
       propertyPath: m_ActionEvents.Array.data[12].m_ActionName
       value: Player/Jump[/Keyboard/space]
       objectReference: {fileID: 0}
@@ -5460,6 +5481,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6070510162224301359, guid: 955152271030a3b48b18f2fd6ace8731,
         type: 3}
+      propertyPath: m_ActionEvents.Array.data[15].m_ActionName
+      value: Player/New action
+      objectReference: {fileID: 0}
+    - target: {fileID: 6070510162224301359, guid: 955152271030a3b48b18f2fd6ace8731,
+        type: 3}
       propertyPath: m_ActionEvents.Array.data[12].m_PersistentCalls.m_Calls.Array.size
       value: 1
       objectReference: {fileID: 0}
@@ -5471,6 +5497,11 @@ PrefabInstance:
     - target: {fileID: 6070510162224301359, guid: 955152271030a3b48b18f2fd6ace8731,
         type: 3}
       propertyPath: m_ActionEvents.Array.data[14].m_PersistentCalls.m_Calls.Array.size
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 6070510162224301359, guid: 955152271030a3b48b18f2fd6ace8731,
+        type: 3}
+      propertyPath: m_ActionEvents.Array.data[15].m_PersistentCalls.m_Calls.Array.size
       value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 6070510162224301359, guid: 955152271030a3b48b18f2fd6ace8731,
@@ -5490,6 +5521,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6070510162224301359, guid: 955152271030a3b48b18f2fd6ace8731,
         type: 3}
+      propertyPath: m_ActionEvents.Array.data[15].m_PersistentCalls.m_Calls.Array.data[0].m_Mode
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6070510162224301359, guid: 955152271030a3b48b18f2fd6ace8731,
+        type: 3}
       propertyPath: m_ActionEvents.Array.data[12].m_PersistentCalls.m_Calls.Array.data[0].m_Target
       value: 
       objectReference: {fileID: 1671468721}
@@ -5501,6 +5537,11 @@ PrefabInstance:
     - target: {fileID: 6070510162224301359, guid: 955152271030a3b48b18f2fd6ace8731,
         type: 3}
       propertyPath: m_ActionEvents.Array.data[14].m_PersistentCalls.m_Calls.Array.data[0].m_Target
+      value: 
+      objectReference: {fileID: 1671468721}
+    - target: {fileID: 6070510162224301359, guid: 955152271030a3b48b18f2fd6ace8731,
+        type: 3}
+      propertyPath: m_ActionEvents.Array.data[15].m_PersistentCalls.m_Calls.Array.data[0].m_Target
       value: 
       objectReference: {fileID: 1671468721}
     - target: {fileID: 6070510162224301359, guid: 955152271030a3b48b18f2fd6ace8731,
@@ -5520,6 +5561,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6070510162224301359, guid: 955152271030a3b48b18f2fd6ace8731,
         type: 3}
+      propertyPath: m_ActionEvents.Array.data[15].m_PersistentCalls.m_Calls.Array.data[0].m_CallState
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 6070510162224301359, guid: 955152271030a3b48b18f2fd6ace8731,
+        type: 3}
       propertyPath: m_ActionEvents.Array.data[12].m_PersistentCalls.m_Calls.Array.data[0].m_MethodName
       value: CTX_Jump
       objectReference: {fileID: 0}
@@ -5532,6 +5578,11 @@ PrefabInstance:
         type: 3}
       propertyPath: m_ActionEvents.Array.data[14].m_PersistentCalls.m_Calls.Array.data[0].m_MethodName
       value: CTX_LockOn
+      objectReference: {fileID: 0}
+    - target: {fileID: 6070510162224301359, guid: 955152271030a3b48b18f2fd6ace8731,
+        type: 3}
+      propertyPath: m_ActionEvents.Array.data[15].m_PersistentCalls.m_Calls.Array.data[0].m_MethodName
+      value: CTX_Dash
       objectReference: {fileID: 0}
     - target: {fileID: 6070510162224301359, guid: 955152271030a3b48b18f2fd6ace8731,
         type: 3}
@@ -5550,6 +5601,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6070510162224301359, guid: 955152271030a3b48b18f2fd6ace8731,
         type: 3}
+      propertyPath: m_ActionEvents.Array.data[15].m_PersistentCalls.m_Calls.Array.data[0].m_TargetAssemblyTypeName
+      value: InputHandler, Assembly-CSharp
+      objectReference: {fileID: 0}
+    - target: {fileID: 6070510162224301359, guid: 955152271030a3b48b18f2fd6ace8731,
+        type: 3}
       propertyPath: m_ActionEvents.Array.data[12].m_PersistentCalls.m_Calls.Array.data[0].m_Arguments.m_ObjectArgumentAssemblyTypeName
       value: UnityEngine.Object, UnityEngine
       objectReference: {fileID: 0}
@@ -5561,6 +5617,11 @@ PrefabInstance:
     - target: {fileID: 6070510162224301359, guid: 955152271030a3b48b18f2fd6ace8731,
         type: 3}
       propertyPath: m_ActionEvents.Array.data[14].m_PersistentCalls.m_Calls.Array.data[0].m_Arguments.m_ObjectArgumentAssemblyTypeName
+      value: UnityEngine.Object, UnityEngine
+      objectReference: {fileID: 0}
+    - target: {fileID: 6070510162224301359, guid: 955152271030a3b48b18f2fd6ace8731,
+        type: 3}
+      propertyPath: m_ActionEvents.Array.data[15].m_PersistentCalls.m_Calls.Array.data[0].m_Arguments.m_ObjectArgumentAssemblyTypeName
       value: UnityEngine.Object, UnityEngine
       objectReference: {fileID: 0}
     - target: {fileID: 8509225239246858918, guid: 955152271030a3b48b18f2fd6ace8731,

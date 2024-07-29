@@ -16,7 +16,8 @@ public class UICanvas : MonoBehaviour
     [SerializeField] private float sqrMagnitudeForLockon;
     [SerializeField] private LayerMask layerToBlockLockon;
 
-    private Enemy lockedonEnemy;
+    public Enemy LockedonEnemy { get; private set; }
+    public bool IsLockedOn => LockedonEnemy != null;
 
     public enum LockonStateEnum
     {
@@ -65,23 +66,23 @@ public class UICanvas : MonoBehaviour
     /// <returns>If there is a current enemy locked onto</returns>
     private bool GetEnemyLockonPivotPos(out Vector3 pos)
     {
-        if (lockedonEnemy == null)
+        if (LockedonEnemy == null)
         {
             pos = Vector3.zero;
             return false;
         }
 
-        pos = lockedonEnemy.LockonPivot.position;
+        pos = LockedonEnemy.LockonPivot.position;
         return true;
     }
 
     private Vector3 GetCamForward()
     {
-        if (lockedonEnemy == null)
+        if (LockedonEnemy == null)
             return cameraPivot.forward;
 
         //Change camera angle
-        Vector3 newCamForward = (lockedonEnemy.HPBarPivot.position - cameraPivot.position);
+        Vector3 newCamForward = (LockedonEnemy.HPBarPivot.position - cameraPivot.position);
         newCamForward.y = 0;
         newCamForward.Normalize();
 
@@ -146,7 +147,7 @@ public class UICanvas : MonoBehaviour
                         lockonRoutine = Routine.Start(this, StartLockon());
                         LockonState = LockonStateEnum.LockingOn;
 
-                        lockedonEnemy = closestEnemy;
+                        LockedonEnemy = closestEnemy;
                     }
 
                     break;
@@ -183,7 +184,7 @@ public class UICanvas : MonoBehaviour
         foreach (Enemy enemy in EnemyManager.Instance.AliveEnemies)
         {
             //Don't show healthbars for enemies that are full health and not locked-on
-            if (enemy.IsHpMax && (lockedonEnemy == null || enemy != lockedonEnemy))
+            if (enemy.IsHpMax && (LockedonEnemy == null || enemy != LockedonEnemy))
             {
                 if (enemy.Healthbar.gameObject.activeSelf)
                     enemy.Healthbar.gameObject.SetActive(false);
@@ -199,7 +200,7 @@ public class UICanvas : MonoBehaviour
             lockonRoutine.Stop();
             lockonRoutine = Routine.Start(this, EndLockon());
             LockonState = LockonStateEnum.Unlocked;
-            lockedonEnemy = null;
+            LockedonEnemy = null;
         }
     }
 
