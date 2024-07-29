@@ -1,7 +1,16 @@
+using BeauRoutine;
 using UnityEngine;
 
 public class PlayerController : MonoBehaviour
 {
+    public enum PlayerStateEnum
+    {
+        Idle,
+        Dashing,
+        Attacking
+    }
+    private PlayerStateEnum state;
+
     [Header("References")]
     [SerializeField] private CharacterController controller;
     [SerializeField] private Transform model;
@@ -10,6 +19,8 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private Transform spherePivot;
     [Space(10)]
     [SerializeField] private UICanvas uiCanvas;
+    [SerializeField] private StaminaSlider staminaSlider;
+    [Space(5)]
     [SerializeField] private Transform cameraPivot;
     [SerializeField] private Transform camTransform;
 
@@ -30,10 +41,21 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float m_frictionSpeed_ground;
     [SerializeField] private float m_frictionSpeed_air;
     [SerializeField] private float m_maxSpeed;
-    [SerializeField] private float sprintSpeedMultiplier;
+    [SerializeField] private float m_sprintSpeedMultiplier;
+    [Space(5)]
+    [SerializeField] private float m_maxStamina;
+    [SerializeField] private float m_staminaRechargePerSec;
+    [SerializeField] private float m_staminaRechargeDelay;
+    [SerializeField] private float m_sprintCostPerSec;
+    [SerializeField] private float m_dashCost;
+
+    private bool isSprinting = false;
+    private float currStamina;
+    private float nextStaminaRechargeTime;
+    private Routine dashRoutine;
 
     private Vector3 currVelocity;
-    private bool grounded;
+    private bool isGrounded;
     private float nextGroundCheckTime;
     private Vector3 groundNormal;
 
@@ -47,10 +69,35 @@ public class PlayerController : MonoBehaviour
     private void Start()
     {
         Cursor.lockState = CursorLockMode.Locked;
+
+        currStamina = m_maxSpeed;
     }
+
+
 
     private void Update()
     {
+        #region Stamina
+        {
+            //Passive Regen
+            if (Time.time >= nextStaminaRechargeTime && !isSprinting && state != PlayerStateEnum.Dashing)
+            {
+                currStamina = Mathf.Min(currStamina + m_staminaRechargePerSec * Time.deltaTime, m_maxStamina);
+            }
+
+            //Check for sprinting state
+            isSprinting = (InputHandler.Instance.Sprint.Holding && currStamina > 0 && state == PlayerStateEnum.Idle);
+            if (isSprinting)
+            {
+                nextStaminaRechargeTime = Time.time + m_staminaRechargeDelay;
+                currStamina -= m_sprintCostPerSec * Time.deltaTime;
+            }
+        }
+
+        //Update UI
+        staminaSlider.Slider.value = (currStamina / m_maxStamina);
+        #endregion
+
         #region Camera Rotation
         if (uiCanvas.LockonState == UICanvas.LockonStateEnum.Unlocked)
         {
@@ -66,23 +113,26 @@ public class PlayerController : MonoBehaviour
         #endregion
 
         #region Player Movement
-        Vector3 forwardDir = cameraPivot.forward;
-        forwardDir.y = 0;
-        forwardDir.Normalize();
+        if (state == PlayerStateEnum.Idle)
+        {
+            Vector3 forwardDir = cameraPivot.forward;
+            forwardDir.y = 0;
+            forwardDir.Normalize();
 
-        Vector3 rightDir = cameraPivot.right.normalized;
+            Vector3 rightDir = cameraPivot.right.normalized;
 
-        Vector3 worldInput = InputHandler.Instance.MoveXZ.y * forwardDir + InputHandler.Instance.MoveXZ.x * rightDir;
+            Vector3 worldInput = InputHandler.Instance.MoveXZ.y * forwardDir + InputHandler.Instance.MoveXZ.x * rightDir;
 
-        HandleInput(worldInput);
+            HandleMovement(worldInput);
+        }
         #endregion
 
         GroundCheck();
 
-        anim.SetBool(ANIM_PARAM_GROUNDED, grounded);
-        anim.SetBool(ANIM_PARAM_SPRINTING, InputHandler.Instance.Sprint.Holding);
+        anim.SetBool(ANIM_PARAM_GROUNDED, isGrounded);
+        anim.SetBool(ANIM_PARAM_SPRINTING, isSprinting);
 
-        if (grounded)
+        if (isGrounded)
         {
             currVelocity.y = 0;
 
@@ -97,7 +147,7 @@ public class PlayerController : MonoBehaviour
             currVelocity.y -= gravSpeed * Time.deltaTime;
         }
 
-        if (grounded)
+        if (isGrounded)
             DebugCanvas.Instance.ShowText("grounded\n" + currVelocity.ToString());
         else
             DebugCanvas.Instance.ShowText("air\n" + currVelocity.ToString());
@@ -122,10 +172,8 @@ public class PlayerController : MonoBehaviour
 
 
 
-    void HandleInput(Vector3 _worldInput)
+    void HandleMovement(Vector3 _worldInput)
     {
-        bool isSprinting = InputHandler.Instance.Sprint.Holding;
-
         float currYVelocity = currVelocity.y;
 
         Vector3 modifiedVelocity_noGrav = currVelocity;
@@ -133,10 +181,10 @@ public class PlayerController : MonoBehaviour
 
         Vector3 targetVelocity = _worldInput * m_maxSpeed;
         if (isSprinting)
-            targetVelocity *= sprintSpeedMultiplier;
+            targetVelocity *= m_sprintSpeedMultiplier;
 
-        float frictionSpeed = (grounded ? m_frictionSpeed_ground : m_frictionSpeed_air) * Time.deltaTime;
-        float accelSpeed = (grounded ? m_accelSpeed_ground : m_accelSpeed_air) * Time.deltaTime;
+        float frictionSpeed = (isGrounded ? m_frictionSpeed_ground : m_frictionSpeed_air) * Time.deltaTime;
+        float accelSpeed = (isGrounded ? m_accelSpeed_ground : m_accelSpeed_air) * Time.deltaTime;
 
         //Apply friction
         modifiedVelocity_noGrav = modifiedVelocity_noGrav.normalized * Mathf.Max(0, modifiedVelocity_noGrav.magnitude - frictionSpeed);
@@ -161,10 +209,10 @@ public class PlayerController : MonoBehaviour
     {
         // Make sure that the ground check distance while already in air is very small, to prevent suddenly snapping to ground
         float chosenGroundCheckDistance =
-            grounded ? (controller.skinWidth + groundCheckDist_grounded) : groundCheckDist_air;
+            isGrounded ? (controller.skinWidth + groundCheckDist_grounded) : groundCheckDist_air;
 
         // reset values before the ground check
-        grounded = false;
+        isGrounded = false;
         groundNormal = Vector3.up;
 
         // only try to detect ground if it's been a short amount of time since last jump; otherwise we may snap to the ground instantly after we try jumping
@@ -182,7 +230,7 @@ public class PlayerController : MonoBehaviour
                 // and if the slope angle is lower than the character controller's limit
                 if (Vector3.Dot(hit.normal, transform.up) > 0f && IsNormalUnderSlopeLimit(groundNormal))
                 {
-                    grounded = true;
+                    isGrounded = true;
 
                     // handle snapping to the ground
                     if (hit.distance > controller.skinWidth)
