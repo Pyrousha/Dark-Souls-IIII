@@ -10,6 +10,7 @@ public class UICanvas : MonoBehaviour
     [SerializeField] private RectTransform lockonRect;
     [SerializeField] private Image lockonImage;
     [Space(10)]
+    [SerializeField] private float lockonCamSpinSpeed;
     [SerializeField] private float lockonDuration;
     [SerializeField] private Transform cameraPivot;
     [Space(10)]
@@ -27,7 +28,7 @@ public class UICanvas : MonoBehaviour
     }
 
     public LockonStateEnum LockonState { get; private set; } = LockonStateEnum.Unlocked;
-    private Vector3 lockedOnCameraAngle;
+    private float lockedOnCameraAngleX;
 
     private Routine lockonRoutine;
 
@@ -35,15 +36,15 @@ public class UICanvas : MonoBehaviour
     {
         c_RectTransform = GetComponent<RectTransform>();
 
-        lockedOnCameraAngle = cameraPivot.forward;
-        Debug.Log(lockedOnCameraAngle);
+        lockedOnCameraAngleX = cameraPivot.eulerAngles.x;
 
         lockonRect.gameObject.SetActive(LockonState != LockonStateEnum.Unlocked);
     }
 
     IEnumerator StartLockon()
     {
-        Vector3 startingForward = cameraPivot.forward;
+        float startingRotX = cameraPivot.eulerAngles.x;
+        float startingRotY = cameraPivot.eulerAngles.y;
         float startingAlpha = lockonImage.color.a;
 
         yield return Tween.Float(0, 1, (t) =>
@@ -53,20 +54,23 @@ public class UICanvas : MonoBehaviour
             newColor.a = Mathf.Lerp(startingAlpha, 1, t);
             lockonImage.color = newColor;
 
-            cameraPivot.forward = Vector3.Lerp(startingForward, GetCamForward(), t);
+            Vector3 cameraRotation = cameraPivot.eulerAngles;
+            cameraRotation.x = Utils.LerpDegrees(startingRotX, lockedOnCameraAngleX, t);
+            cameraRotation.y = Utils.LerpDegrees(startingRotY, GetCamYRot(), t);
+            cameraPivot.eulerAngles = cameraRotation;
         }, lockonDuration).Ease(Curve.CubeInOut);
 
         LockonState = LockonStateEnum.Locked;
     }
 
     /// <summary>
-    /// Gets the position of the current enemy's locked-on pivor
+    /// Gets the position of the current enemy's locked-on pivot
     /// </summary>
     /// <param name="pos"></param>
     /// <returns>If there is a current enemy locked onto</returns>
     private bool GetEnemyLockonPivotPos(out Vector3 pos)
     {
-        if (LockedonEnemy == null)
+        if (LockedonEnemy == null || LockedonEnemy.IsDead)
         {
             pos = Vector3.zero;
             return false;
@@ -76,20 +80,21 @@ public class UICanvas : MonoBehaviour
         return true;
     }
 
-    private Vector3 GetCamForward()
+    private float GetCamYRot(bool _interpolate = false)
     {
-        if (LockedonEnemy == null)
-            return cameraPivot.forward;
+        if (LockedonEnemy == null || LockedonEnemy.IsDead)
+            return cameraPivot.eulerAngles.y;
 
         //Change camera angle
         Vector3 newCamForward = (LockedonEnemy.HPBarPivot.position - cameraPivot.position);
-        newCamForward.y = 0;
-        newCamForward.Normalize();
 
-        newCamForward *= (1 - lockedOnCameraAngle.y);
-        newCamForward.y = lockedOnCameraAngle.y;
+        float newAngle = Mathf.Atan2(newCamForward.x, newCamForward.z) * Mathf.Rad2Deg;
 
-        return newCamForward;
+        if (!_interpolate)
+            return newAngle;
+
+        float currAngle = cameraPivot.eulerAngles.y;
+        return Utils.MoveTowardsRotation(currAngle, newAngle, Time.deltaTime * lockonCamSpinSpeed);
     }
 
     IEnumerator EndLockon()
@@ -172,7 +177,9 @@ public class UICanvas : MonoBehaviour
         }
         else if (LockonState == LockonStateEnum.Locked)
         {
-            cameraPivot.forward = GetCamForward();
+            Vector3 cameraAngles = cameraPivot.eulerAngles;
+            cameraAngles.y = GetCamYRot(true);
+            cameraPivot.eulerAngles = cameraAngles;
 
             if (GetEnemyLockonPivotPos(out Vector3 pos))
                 SetUIPositionToWorldPosition(lockonRect, pos);
@@ -184,15 +191,15 @@ public class UICanvas : MonoBehaviour
         foreach (Enemy enemy in EnemyManager.Instance.AliveEnemies)
         {
             //Don't show healthbars for enemies that are full health and not locked-on
-            if (enemy.IsHpMax && (LockedonEnemy == null || enemy != LockedonEnemy))
+            if (enemy.IsDead || (enemy.IsHpMax && enemy != LockedonEnemy))
             {
-                if (enemy.Healthbar.gameObject.activeSelf)
-                    enemy.Healthbar.gameObject.SetActive(false);
+                if (enemy.EnemyHealthbar.gameObject.activeSelf)
+                    enemy.EnemyHealthbar.gameObject.SetActive(false);
 
                 continue;
             }
 
-            SetUIPositionToWorldPosition(enemy.Healthbar.C_RectTransform, enemy.HPBarPivot.position, true);
+            SetUIPositionToWorldPosition(enemy.EnemyHealthbar.C_RectTransform, enemy.HPBarPivot.position, true);
         }
 
         void Helper_EndLockon()

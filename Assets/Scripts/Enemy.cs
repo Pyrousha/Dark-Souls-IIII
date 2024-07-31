@@ -1,22 +1,23 @@
 using UnityEngine;
 
-public class Enemy : MonoBehaviour
+public class Enemy : Entity, IPoolableObject
 {
     [field: SerializeField] public Transform LockonPivot { get; private set; }
     [field: SerializeField] public Transform HPBarPivot { get; private set; }
 
-    [SerializeField] private int maxHp;
-    private int currHp;
-
-    public EnemyHealthbar Healthbar { get; private set; }
-
-    private void Start()
+    public void ResetData()
     {
-        EnemyManager.Instance.AddToEnemyList(this);
-        Healthbar = ObjectPooler.Instance.GetFromPool<EnemyHealthbar>();
-
-        currHp = maxHp;
+        base.FullHeal();
     }
 
-    public bool IsHpMax => (maxHp == currHp);
+    public new void Start()
+    {
+        if (playerHealthbar == null)
+        {
+            EnemyManager.Instance.AddToEnemyList(this);
+            EnemyHealthbar = ObjectPooler.Instance.GetFromPool<EnemyHealthbar>();
+        }
+
+        base.Start();
+    }
 }

@@ -1,31 +1,40 @@
 using UnityEngine;
 using UnityEngine.UI;
 
-public class EnemyHealthbar : PoolableObject
+public class EnemyHealthbar : MonoBehaviour, IPoolableObject
 {
     [field: SerializeField] public RectTransform C_RectTransform;
     [SerializeField] private Slider hpBar;
     [SerializeField] private Slider tempHpBar;
+
+    private float targValue;
 
     private void Awake()
     {
         C_RectTransform = GetComponent<RectTransform>();
     }
 
-    public override void ResetData()
+    public void ResetData()
     {
         hpBar.value = 1;
         tempHpBar.value = 1;
     }
 
-    public void TakeDamage(float _percent)
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="_tempHealthPercent"> Percentage of max health that is temporary health </param>
+    /// <param name="_healthPercent"> Percentage of health remaining out of max health </param>
+    public void UpdateUI(float _tempHealthPercent, float _healthPercent)
     {
-        hpBar.value = Mathf.Max(0, hpBar.value - _percent);
-        tempHpBar.value = Mathf.Max(0, tempHpBar.value - _percent);
+        //Temp hp is rendered behind
+        tempHpBar.value = _healthPercent;
+
+        hpBar.value = _healthPercent - _tempHealthPercent;
     }
 
-    public void TakeTempDamage(float _percent)
+    void IPoolableObject.ResetData()
     {
-        hpBar.value = Mathf.Max(0, hpBar.value - _percent);
+        throw new System.NotImplementedException();
     }
 }

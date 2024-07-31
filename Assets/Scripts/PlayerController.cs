@@ -1,6 +1,6 @@
 using UnityEngine;
 
-public class PlayerController : MonoBehaviour
+public class PlayerController : Entity
 {
     private enum PlayerStateEnum
     {
@@ -20,6 +20,7 @@ public class PlayerController : MonoBehaviour
         [field: SerializeField] public float MaxSpeed { get; private set; } = 10;
         [field: SerializeField] public float DashStartSpeed { get; private set; } = 100;
         [field: SerializeField] public float DashEndSpeed { get; private set; } = 500;
+        [field: SerializeField] public int HeavyAttackDamage { get; private set; } = 100;
 
         public void SetValues_Lerp(Speedblock block0, Speedblock block1, float t)
         {
@@ -30,6 +31,7 @@ public class PlayerController : MonoBehaviour
             MaxSpeed = Mathf.Lerp(block0.MaxSpeed, block1.MaxSpeed, t);
             DashStartSpeed = Mathf.Lerp(block0.DashStartSpeed, block1.DashStartSpeed, t);
             DashEndSpeed = Mathf.Lerp(block0.DashEndSpeed, block1.DashEndSpeed, t);
+            HeavyAttackDamage = (int)Mathf.Lerp(block0.HeavyAttackDamage, block1.HeavyAttackDamage, t);
         }
     }
 
@@ -37,8 +39,7 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private CharacterController controller;
     [SerializeField] private Transform model;
     [SerializeField] private Animator anim;
-    [SerializeField] private Transform groundPivot;
-    [SerializeField] private Transform spherePivot;
+    [SerializeField] private Transform heavyAttackPivot;
     [Space(10)]
     [SerializeField] private UICanvas uiCanvas;
     [SerializeField] private StaminaSlider staminaSlider;
@@ -51,6 +52,7 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float maxCamDistance;
     [SerializeField] private float camMoveSpeedY;
     [SerializeField] private float camMoveSpeedX;
+    [SerializeField] private float modelYRotSpeed;
     [Space(10)]
     [SerializeField] private float groundCheckDist_grounded = 2f;
     [SerializeField] private float groundCheckDist_air = 0.7f;
@@ -73,6 +75,16 @@ public class PlayerController : MonoBehaviour
     [Space(5)]
     [SerializeField] private float m_dashDuration;
     [SerializeField] private float m_waitTimeAfterDash;
+    [Space(5)]
+    [SerializeField] private float m_heavyAttackDuration;
+
+    //Attack
+    private float attackStartTime;
+    private float t_attackScootEndTime;
+    private float t_attackEndTime;
+    Speedblock heavyAttackSpeedblock = new Speedblock();
+    private float currAttackScootingSpeed;
+    private Vector2 attackInputDirection;
 
     //Stamina
     private float t_nextStaminaRechargeTime;
@@ -83,7 +95,7 @@ public class PlayerController : MonoBehaviour
     private bool isSprinting = false;
     private float currSpeedState = 0;
     private float maxSpeedState = 3.5f;
-    private Speedblock currSpeedblock = new Speedblock();
+    private Speedblock sprintSpeedblock = new Speedblock();
     private float speedGainPerSec;
 
     //Dash
@@ -111,15 +123,20 @@ public class PlayerController : MonoBehaviour
     private int ANIM_PARAM_DASH_TRIGGER = Animator.StringToHash("Dash");
     private int ANIM_PARAM_DASH_DIR_X = Animator.StringToHash("DashDirX");
     private int ANIM_PARAM_DASH_DIR_Y = Animator.StringToHash("DashDirY");
+    private int ANIM_PARAM_HEAVY_ATTACK = Animator.StringToHash("HeavyAttack");
 
-    private void Awake()
+    private new void Awake()
     {
+        base.Awake();
+
         currStamina = m_maxStamina / 2f;
         speedGainPerSec = (m_sprintCostPerSec / m_sprintCostPerSpeedState);
     }
 
-    private void Start()
+    private new void Start()
     {
+        base.Start();
+
         Cursor.lockState = CursorLockMode.Locked;
     }
 
@@ -138,111 +155,150 @@ public class PlayerController : MonoBehaviour
     {
         GroundCheck();
 
-        #region Stamina
+        //Start Heavy Attack
+        if (isGrounded && InputHandler.Instance.HeavyAttack.Down && currSpeedState >= 1
+            && (state == PlayerStateEnum.Idle || state == PlayerStateEnum.Dashing))
         {
-            switch (state)
-            {
-                case PlayerStateEnum.Idle:
-                    if (isGrounded && InputHandler.Instance.Dash.Down && InputHandler.Instance.PressingDirection && currStamina > 0)
+            //Set velocity
+            float statePercent = ((int)currSpeedState) / 3f;
+            heavyAttackSpeedblock.SetValues_Lerp(lowSpeedblock, highSpeedblock, statePercent);
+            if (InputHandler.Instance.PressingDirection && !uiCanvas.IsLockedOn)
+                attackInputDirection = InputHandler.Instance.MoveXZ.normalized;
+            else
+                attackInputDirection = Vector2.up;
+            currAttackScootingSpeed = heavyAttackSpeedblock.DashStartSpeed;
+            currVelocity = ConvertInputDirToWorldDir(attackInputDirection) * heavyAttackSpeedblock.DashStartSpeed;
+
+            //Set state vars and timers
+            attackStartTime = Time.time;
+            state = PlayerStateEnum.Attacking;
+            t_attackScootEndTime = Time.time + m_dashDuration;
+            t_attackEndTime = Time.time + m_heavyAttackDuration;
+            t_nextSpeedDecreaseTime = Mathf.Max(t_nextSpeedDecreaseTime, t_attackEndTime + m_waitTimeAfterDash);
+            t_nextStaminaRechargeTime = Mathf.Max(t_nextStaminaRechargeTime, t_attackEndTime + m_waitTimeAfterDash);
+
+            //Set anim
+            anim.SetTrigger(ANIM_PARAM_HEAVY_ATTACK);
+        }
+
+
+        switch (state)
+        {
+            case PlayerStateEnum.Idle:
+                //Start Dash
+                if (isGrounded && InputHandler.Instance.Dash.Down && InputHandler.Instance.PressingDirection && currStamina > 0)
+                {
+                    //Consume stamina
+                    currStamina -= m_dashCost;
+                    staminaSlider.Slider.value = (currStamina / m_maxStamina);
+
+                    //Set velocity
+                    float statePercent = Mathf.Clamp(currSpeedState / 3f, 0, 1);
+                    dashSpeedblock.SetValues_Lerp(lowSpeedblock, highSpeedblock, statePercent);
+                    dashInputDirection = InputHandler.Instance.MoveXZ.normalized;
+                    currSpeedState = Mathf.Clamp(currSpeedState, 0, maxSpeedState);
+                    currDashingSpeed = dashSpeedblock.DashStartSpeed;
+                    currVelocity = ConvertInputDirToWorldDir(dashInputDirection) * dashSpeedblock.DashStartSpeed;
+
+                    //Set state vars and timers
+                    dashStartTime = Time.time;
+                    state = PlayerStateEnum.Dashing;
+                    currSpeedState++;
+                    t_dashEndTime = Time.time + m_dashDuration;
+                    t_nextSpeedDecreaseTime = Mathf.Max(t_nextSpeedDecreaseTime, t_dashEndTime + m_waitTimeAfterDash);
+                    t_nextStaminaRechargeTime = Mathf.Max(t_nextStaminaRechargeTime, t_dashEndTime + m_waitTimeAfterDash);
+
+                    //Set anim params
+                    anim.SetTrigger(ANIM_PARAM_DASH_TRIGGER);
+                    if (uiCanvas.IsLockedOn)
                     {
-                        //Consume stamina
-                        currStamina -= m_dashCost;
-                        staminaSlider.Slider.value = (currStamina / m_maxStamina);
-
-                        //Set velocity
-                        float statePercent = Mathf.Clamp(currSpeedState / 3f, 0, 1);
-                        dashSpeedblock.SetValues_Lerp(lowSpeedblock, highSpeedblock, statePercent);
-                        dashInputDirection = InputHandler.Instance.MoveXZ.normalized;
-                        currSpeedState = Mathf.Clamp(currSpeedState, 0, maxSpeedState);
-                        currVelocity = ConvertInputDirToWorldDir(dashInputDirection) * dashSpeedblock.DashStartSpeed;
-                        currDashingSpeed = dashSpeedblock.DashStartSpeed;
-
-                        //Set state vars and timers
-                        dashStartTime = Time.time;
-                        state = PlayerStateEnum.Dashing;
-                        currSpeedState++;
-                        t_dashEndTime = Time.time + m_dashDuration;
-                        t_nextSpeedDecreaseTime = Mathf.Max(t_nextSpeedDecreaseTime, t_dashEndTime + m_waitTimeAfterDash);
-                        t_nextStaminaRechargeTime = Mathf.Max(t_nextStaminaRechargeTime, t_dashEndTime + m_waitTimeAfterDash);
-
-                        //Set anim params
-                        anim.SetTrigger(ANIM_PARAM_DASH_TRIGGER);
-                        if (uiCanvas.IsLockedOn)
-                        {
-                            anim.SetFloat(ANIM_PARAM_DASH_DIR_X, dashInputDirection.x);
-                            anim.SetFloat(ANIM_PARAM_DASH_DIR_Y, dashInputDirection.y);
-                        }
-                        else
-                        {
-                            anim.SetFloat(ANIM_PARAM_DASH_DIR_X, 0);
-                            anim.SetFloat(ANIM_PARAM_DASH_DIR_Y, 1);
-                        }
-                    }
-                    break;
-
-                case PlayerStateEnum.Dashing:
-                    if (Time.time >= t_dashEndTime)
-                    {
-                        //End Dash
-                        state = PlayerStateEnum.Idle;
+                        anim.SetFloat(ANIM_PARAM_DASH_DIR_X, dashInputDirection.x);
+                        anim.SetFloat(ANIM_PARAM_DASH_DIR_Y, dashInputDirection.y);
                     }
                     else
                     {
-                        //Decelerate
-                        currDashingSpeed = Mathf.Lerp(dashSpeedblock.DashStartSpeed, dashSpeedblock.DashEndSpeed, (Time.time - dashStartTime) / m_dashDuration);
-                        currVelocity = ConvertInputDirToWorldDir(dashInputDirection) * currDashingSpeed;
+                        anim.SetFloat(ANIM_PARAM_DASH_DIR_X, 0);
+                        anim.SetFloat(ANIM_PARAM_DASH_DIR_Y, 1);
                     }
-                    break;
+                }
+                break;
 
-                case PlayerStateEnum.Attacking:
-                    break;
-            }
-
-            isSprinting = ((InputHandler.Instance.Sprint.Holding || InputHandler.Instance.Dash.Holding) && currStamina > 0
-                && isGrounded && state == PlayerStateEnum.Idle && InputHandler.Instance.PressingDirection);
-            if (isSprinting)
-            {
-                //nextStaminaRechargeTime = Time.time + m_staminaRechargeDelay;
-                currStamina -= m_sprintCostPerSec * Time.deltaTime;
-            }
-
-            if (state == PlayerStateEnum.Idle)
-            {
-                //Passive Regen
-                if (Time.time >= t_nextStaminaRechargeTime && !isSprinting && state != PlayerStateEnum.Dashing)
+            case PlayerStateEnum.Dashing:
+                if (Time.time >= t_dashEndTime)
                 {
-                    currStamina = Mathf.Min(currStamina + m_staminaRechargePerSec * Time.deltaTime, m_maxStamina);
+                    //End Dash
+                    state = PlayerStateEnum.Idle;
+                }
+                else
+                {
+                    //Decelerate
+                    currDashingSpeed = Mathf.Lerp(dashSpeedblock.DashStartSpeed, dashSpeedblock.DashEndSpeed,
+                        (Time.time - dashStartTime) / m_dashDuration);
+                    currVelocity = ConvertInputDirToWorldDir(dashInputDirection) * currDashingSpeed;
+                }
+                break;
+
+            case PlayerStateEnum.Attacking:
+                if (Time.time >= t_attackEndTime)
+                {
+                    //End Attack
+                    state = PlayerStateEnum.Idle;
+                    break;
                 }
 
-                //Update sprint slider ui
-                staminaSlider.Slider.value = (currStamina / m_maxStamina);
+                if (Time.time <= t_attackScootEndTime)
+                {
+                    //Decelerate
+                    currAttackScootingSpeed = Mathf.Lerp(heavyAttackSpeedblock.DashStartSpeed, heavyAttackSpeedblock.DashEndSpeed,
+                        (Time.time - attackStartTime) / m_dashDuration);
+                    currVelocity = ConvertInputDirToWorldDir(attackInputDirection) * currAttackScootingSpeed;
+                }
+                break;
+        }
 
+        isSprinting = ((InputHandler.Instance.Sprint.Holding || InputHandler.Instance.Dash.Holding) && currStamina > 0
+            && isGrounded && state == PlayerStateEnum.Idle && InputHandler.Instance.PressingDirection);
+        if (isSprinting)
+        {
+            //nextStaminaRechargeTime = Time.time + m_staminaRechargeDelay;
+            currStamina -= m_sprintCostPerSec * Time.deltaTime;
+        }
 
-                //Speed state gain
-                if (isSprinting)
-                    currSpeedState += speedGainPerSec * Time.deltaTime;
-                else if (Time.time >= t_nextSpeedDecreaseTime)
-                    currSpeedState = Mathf.Max(0, currSpeedState - m_speedLossPerSec * Time.deltaTime);
+        if (state == PlayerStateEnum.Idle)
+        {
+            //Passive Regen
+            if (Time.time >= t_nextStaminaRechargeTime && !isSprinting && state != PlayerStateEnum.Dashing)
+            {
+                currStamina = Mathf.Min(currStamina + m_staminaRechargePerSec * Time.deltaTime, m_maxStamina);
             }
 
-            currSpeedState = Mathf.Clamp(currSpeedState, 0, maxSpeedState);
+            //Update sprint slider ui
+            staminaSlider.Slider.value = (currStamina / m_maxStamina);
 
-            float speedPercent = Mathf.Floor(currSpeedState);
+
+            //Speed state gain
             if (isSprinting)
-                speedPercent += (1 - speedPercent / 3);
-            speedPercent = Mathf.Clamp(speedPercent / 3f, 0, 1);
-
-            currSpeedblock.SetValues_Lerp(lowSpeedblock, highSpeedblock, speedPercent);
-
-            //Update anim parameters
-            lastSpeedStatePercent = Utils.MoveTowardsValue(lastSpeedStatePercent, speedPercent, Time.deltaTime * maxSpeedState);
-            anim.SetFloat(ANIM_PARAM_SPEED_STATE_PERCENT, lastSpeedStatePercent);
-
-
-            //Update speed slider ui
-            speedSlider.SetSliderVisualState(currSpeedState);
+                currSpeedState += speedGainPerSec * Time.deltaTime;
+            else if (Time.time >= t_nextSpeedDecreaseTime)
+                currSpeedState = Mathf.Max(0, currSpeedState - m_speedLossPerSec * Time.deltaTime);
         }
-        #endregion
+
+        currSpeedState = Mathf.Clamp(currSpeedState, 0, maxSpeedState);
+
+        float speedPercent = Mathf.Floor(currSpeedState);
+        if (isSprinting)
+            speedPercent += (1 - speedPercent / 3);
+        speedPercent = Mathf.Clamp(speedPercent / 3f, 0, 1);
+
+        sprintSpeedblock.SetValues_Lerp(lowSpeedblock, highSpeedblock, speedPercent);
+
+        //Update anim parameters
+        lastSpeedStatePercent = Utils.MoveTowardsValue(lastSpeedStatePercent, speedPercent, Time.deltaTime * maxSpeedState);
+        anim.SetFloat(ANIM_PARAM_SPEED_STATE_PERCENT, lastSpeedStatePercent);
+
+
+        //Update speed slider ui
+        speedSlider.SetSliderVisualState(currSpeedState);
 
         #region Camera Rotation
         if (uiCanvas.LockonState == UICanvas.LockonStateEnum.Unlocked)
@@ -253,8 +309,9 @@ public class PlayerController : MonoBehaviour
                 camXRot -= 360;
             camXRot = Mathf.Clamp(camXRot, -60f, 89.5f);
 
-            float camYRot = cameraPivot.eulerAngles.y + InputHandler.Instance.Look.x * camMoveSpeedX * Time.deltaTime;
-            cameraPivot.eulerAngles = new Vector3(camXRot, camYRot, 0);
+            float newYRot = cameraPivot.eulerAngles.y + InputHandler.Instance.Look.x * camMoveSpeedX * Time.deltaTime;
+
+            cameraPivot.eulerAngles = new Vector3(camXRot, newYRot, 0);
         }
         #endregion
 
@@ -283,12 +340,6 @@ public class PlayerController : MonoBehaviour
         if (isGrounded)
         {
             currVelocity.y = 0;
-
-            //if (InputHandler.Instance.Jump.Down)
-            //{
-            //    currVelocity.y = jumpSpeed;
-            //    nextGroundCheckTime = Time.time + 0.25f;
-            //}
         }
         else
         {
@@ -315,24 +366,49 @@ public class PlayerController : MonoBehaviour
         }
 
         #region Update facing direciton of player model
+        Vector3 newForward = model.forward;
         Enemy lockedOnEnemy = uiCanvas.LockedonEnemy;
-        if (lockedOnEnemy == null || isSprinting)
+        if (lockedOnEnemy == null || isSprinting || state == PlayerStateEnum.Attacking)
         {
             Vector3 gravitylessVelocity = currVelocity;
             gravitylessVelocity.y = 0;
 
             if (gravitylessVelocity.sqrMagnitude > 0.1f)
-                model.forward = gravitylessVelocity.normalized;
+                newForward = gravitylessVelocity.normalized;
         }
         else
         {
             Vector3 toEnemy = lockedOnEnemy.transform.position - transform.position;
             toEnemy.y = 0;
-            model.forward = toEnemy.normalized;
+            newForward = toEnemy.normalized;
         }
+
+        float currYRot = model.eulerAngles.y;
+        float targYRot = Mathf.Atan2(newForward.x, newForward.z) * Mathf.Rad2Deg;
+        Vector3 modelRot = model.eulerAngles;
+        modelRot.y = Utils.MoveTowardsRotation(currYRot, targYRot, modelYRotSpeed * Time.deltaTime);
+        model.eulerAngles = modelRot;
         #endregion
 
         MoveCameraOutOfWall();
+    }
+
+    public void SpawnHeavyHitbox()
+    {
+        Collider[] hitEntities =
+            Physics.OverlapBox(heavyAttackPivot.position, heavyAttackPivot.lossyScale / 2f, heavyAttackPivot.rotation, EnemyManager.Instance.HurtboxLayer, QueryTriggerInteraction.Collide);
+        if (hitEntities.Length > 0)
+        {
+            foreach (Collider collider in hitEntities)
+            {
+                Entity entity = collider.GetComponent<EntityHurtbox>().AttachedEntity;
+                if (entity.Team == EntityTeam.Enemy)
+                    entity.TakeDamage(heavyAttackSpeedblock.HeavyAttackDamage);
+            }
+        }
+
+        currSpeedState = 0;
+        speedSlider.SetSliderVisualState(currSpeedState);
     }
 
     void HandleMovement(Vector3 _worldInput)
@@ -343,10 +419,10 @@ public class PlayerController : MonoBehaviour
         modifiedVelocity_noGrav.y = 0;
 
 
-        Vector3 targetVelocity = _worldInput * currSpeedblock.MaxSpeed;
+        Vector3 targetVelocity = _worldInput * sprintSpeedblock.MaxSpeed;
 
-        float frictionSpeed = (isGrounded ? currSpeedblock.FrictionSpeed_ground : currSpeedblock.FrictionSpeed_air) * Time.deltaTime;
-        float accelSpeed = (isGrounded ? currSpeedblock.AccelSpeed_ground : currSpeedblock.AccelSpeed_air) * Time.deltaTime;
+        float frictionSpeed = (isGrounded ? sprintSpeedblock.FrictionSpeed_ground : sprintSpeedblock.FrictionSpeed_air) * Time.deltaTime;
+        float accelSpeed = (isGrounded ? sprintSpeedblock.AccelSpeed_ground : sprintSpeedblock.AccelSpeed_air) * Time.deltaTime;
 
         //Apply friction
         modifiedVelocity_noGrav = modifiedVelocity_noGrav.normalized * Mathf.Max(0, modifiedVelocity_noGrav.magnitude - frictionSpeed);
@@ -418,139 +494,6 @@ public class PlayerController : MonoBehaviour
     {
         return transform.position + (transform.up * (atHeight - controller.radius));
     }
-
-    //void HandleCharacterMovement()
-    //{
-    //    // horizontal character rotation
-    //    {
-    //        // rotate the transform with the input speed around its local Y axis
-    //        transform.Rotate(
-    //            new Vector3(0f, (m_InputHandler.GetLookInputsHorizontal() * RotationSpeed * RotationMultiplier),
-    //                0f), Space.Self);
-    //    }
-
-    //    // vertical camera rotation
-    //    {
-    //        // add vertical inputs to the camera's vertical angle
-    //        m_CameraVerticalAngle += m_InputHandler.GetLookInputsVertical() * RotationSpeed * RotationMultiplier;
-
-    //        // limit the camera's vertical angle to min/max
-    //        m_CameraVerticalAngle = Mathf.Clamp(m_CameraVerticalAngle, -89f, 89f);
-
-    //        // apply the vertical angle as a local rotation to the camera transform along its right axis (makes it pivot up and down)
-    //        PlayerCamera.transform.localEulerAngles = new Vector3(m_CameraVerticalAngle, 0, 0);
-    //    }
-
-    //    // character movement handling
-    //    bool isSprinting = m_InputHandler.GetSprintInputHeld();
-    //    {
-    //        if (isSprinting)
-    //        {
-    //            isSprinting = SetCrouchingState(false, false);
-    //        }
-
-    //        float speedModifier = isSprinting ? SprintSpeedModifier : 1f;
-
-    //        // converts move input to a worldspace vector based on our character's transform orientation
-    //        Vector3 worldspaceMoveInput = transform.TransformVector(m_InputHandler.GetMoveInput());
-
-    //        // handle grounded movement
-    //        if (IsGrounded)
-    //        {
-    //            // calculate the desired velocity from inputs, max speed, and current slope
-    //            Vector3 targetVelocity = worldspaceMoveInput * MaxSpeedOnGround * speedModifier;
-    //            // reduce speed if crouching by crouch speed ratio
-    //            if (IsCrouching)
-    //                targetVelocity *= MaxSpeedCrouchedRatio;
-    //            targetVelocity = GetDirectionReorientedOnSlope(targetVelocity.normalized, m_GroundNormal) *
-    //                             targetVelocity.magnitude;
-
-    //            // smoothly interpolate between our current velocity and the target velocity based on acceleration speed
-    //            CharacterVelocity = Vector3.Lerp(CharacterVelocity, targetVelocity,
-    //                MovementSharpnessOnGround * Time.deltaTime);
-
-    //            // jumping
-    //            if (IsGrounded && m_InputHandler.GetJumpInputDown())
-    //            {
-    //                // force the crouch state to false
-    //                if (SetCrouchingState(false, false))
-    //                {
-    //                    // start by canceling out the vertical component of our velocity
-    //                    CharacterVelocity = new Vector3(CharacterVelocity.x, 0f, CharacterVelocity.z);
-
-    //                    // then, add the jumpSpeed value upwards
-    //                    CharacterVelocity += Vector3.up * JumpForce;
-
-    //                    // play sound
-    //                    AudioSource.PlayOneShot(JumpSfx);
-
-    //                    // remember last time we jumped because we need to prevent snapping to ground for a short time
-    //                    m_LastTimeJumped = Time.time;
-    //                    HasJumpedThisFrame = true;
-
-    //                    // Force grounding to false
-    //                    IsGrounded = false;
-    //                    m_GroundNormal = Vector3.up;
-    //                }
-    //            }
-
-    //            // footsteps sound
-    //            float chosenFootstepSfxFrequency =
-    //                (isSprinting ? FootstepSfxFrequencyWhileSprinting : FootstepSfxFrequency);
-    //            if (m_FootstepDistanceCounter >= 1f / chosenFootstepSfxFrequency)
-    //            {
-    //                m_FootstepDistanceCounter = 0f;
-    //                AudioSource.PlayOneShot(FootstepSfx);
-    //            }
-
-    //            // keep track of distance traveled for footsteps sound
-    //            m_FootstepDistanceCounter += CharacterVelocity.magnitude * Time.deltaTime;
-    //        }
-    //        // handle air movement
-    //        else
-    //        {
-    //            // add air acceleration
-    //            CharacterVelocity += worldspaceMoveInput * AccelerationSpeedInAir * Time.deltaTime;
-
-    //            // limit air speed to a maximum, but only horizontally
-    //            float verticalVelocity = CharacterVelocity.y;
-    //            Vector3 horizontalVelocity = Vector3.ProjectOnPlane(CharacterVelocity, Vector3.up);
-    //            horizontalVelocity = Vector3.ClampMagnitude(horizontalVelocity, MaxSpeedInAir * speedModifier);
-    //            CharacterVelocity = horizontalVelocity + (Vector3.up * verticalVelocity);
-
-    //            // apply the gravity to the velocity
-    //            CharacterVelocity += GravityDownForce * Time.deltaTime * Vector3.down;
-    //        }
-    //    }
-
-    //    // apply the final calculated velocity value as a character movement
-    //    Vector3 capsuleBottomBeforeMove = GetCapsuleBottomHemisphere();
-    //    Vector3 capsuleTopBeforeMove = GetCapsuleTopHemisphere(controller.height);
-    //    controller.Move(CharacterVelocity * Time.deltaTime);
-
-    //    // detect obstructions to adjust velocity accordingly
-    //    m_LatestImpactSpeed = Vector3.zero;
-    //    if (Physics.CapsuleCast(capsuleBottomBeforeMove, capsuleTopBeforeMove, controller.radius,
-    //        CharacterVelocity.normalized, out RaycastHit hit, CharacterVelocity.magnitude * Time.deltaTime, -1,
-    //        QueryTriggerInteraction.Ignore))
-    //    {
-    //        // We remember the last impact speed because the fall damage logic might need it
-    //        m_LatestImpactSpeed = CharacterVelocity;
-
-    //        CharacterVelocity = Vector3.ProjectOnPlane(CharacterVelocity, hit.normal);
-    //    }
-    //}
-
-
-
-
-
-
-
-
-
-
-
 
     private void MoveCameraOutOfWall()
     {

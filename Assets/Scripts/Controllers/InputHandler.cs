@@ -12,9 +12,9 @@ public class InputHandler : Singleton<InputHandler>
         Sprint = 1,
         LockOn = 2,
         Dash = 3,
-        Restart = 4,
-        Pause = 5,
-        Interact = 6,
+        HeavyAttack = 4,
+        LightAttack = 5,
+        RangedAttack = 6,
         NUM_BUTTONS = 7
     }
 
@@ -50,17 +50,17 @@ public class InputHandler : Singleton<InputHandler>
     {
         get { return buttons[(int)ButtonIndices.Dash]; }
     }
-    public ButtonState Restart
+    public ButtonState HeavyAttack
     {
-        get { return buttons[(int)ButtonIndices.Restart]; }
+        get { return buttons[(int)ButtonIndices.HeavyAttack]; }
     }
-    public ButtonState Pause
+    public ButtonState LightAttack
     {
-        get { return buttons[(int)ButtonIndices.Pause]; }
+        get { return buttons[(int)ButtonIndices.LightAttack]; }
     }
-    public ButtonState Interact
+    public ButtonState RangedAttack
     {
-        get { return buttons[(int)ButtonIndices.Interact]; }
+        get { return buttons[(int)ButtonIndices.RangedAttack]; }
     }
 
     private int buttonCount = (int)ButtonIndices.NUM_BUTTONS;
@@ -120,17 +120,17 @@ public class InputHandler : Singleton<InputHandler>
     {
         buttons[(int)ButtonIndices.Dash].Set(_ctx);
     }
-    public void CTX_Restart(InputAction.CallbackContext _ctx)
+    public void CTX_HeavyAttack(InputAction.CallbackContext _ctx)
     {
-        buttons[(int)ButtonIndices.Restart].Set(_ctx);
+        buttons[(int)ButtonIndices.HeavyAttack].Set(_ctx);
     }
-    public void CTX_Pause(InputAction.CallbackContext _ctx)
+    public void CTX_LightAttack(InputAction.CallbackContext _ctx)
     {
-        buttons[(int)ButtonIndices.Pause].Set(_ctx);
+        buttons[(int)ButtonIndices.LightAttack].Set(_ctx);
     }
-    public void CTX_Interact(InputAction.CallbackContext _ctx)
+    public void CTX_RangedAttack(InputAction.CallbackContext _ctx)
     {
-        buttons[(int)ButtonIndices.Interact].Set(_ctx);
+        buttons[(int)ButtonIndices.RangedAttack].Set(_ctx);
     }
 
 

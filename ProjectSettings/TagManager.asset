@@ -12,9 +12,9 @@ TagManager:
   - Water
   - UI
   - Terrain
-  - Entity
-  - 
-  - 
+  - Entity-Player
+  - Hurtbox
+  - Entity-Nonplayer
   - 
   - 
   - 

@@ -1,4 +1,5 @@
 using System;
+using UnityEngine;
 
 public static class Utils
 {
@@ -8,17 +9,17 @@ public static class Utils
     /// <param name="_value"></param>
     /// <param name="_currentMin"></param>
     /// <param name="_currentMax"></param>
-    /// <param name="_targetMin"></param>
-    /// <param name="_targetMax"></param>
+    /// <param name="_newMin"></param>
+    /// <param name="_newMax"></param>
     /// <returns></returns>
-    public static float Remap(float _value, float _currentMin, float _currentMax, float _targetMin, float _targetMax)
+    public static float Remap(float _value, float _currentMin, float _currentMax, float _newMin, float _newMax)
     {
         float currRange = _currentMax - _currentMin;
         float currAmountFromMin = _value - _currentMin;
         float percentFromMin = currAmountFromMin / currRange;
 
-        float targRange = _targetMax - _targetMin;
-        return _targetMin + percentFromMin * targRange;
+        float targRange = _newMax - _newMin;
+        return _newMin + percentFromMin * targRange;
     }
 
     public static float MoveTowardsValue(float _currValue, float _targetValue, float _amountToMoveThisIteration)
@@ -32,5 +33,83 @@ public static class Utils
 
         //_currvalue is > targetValue
         return _currValue - _amountToMoveThisIteration;
+    }
+
+    public static float LerpDegrees(float start, float end, float amount)
+    {
+        float difference = Math.Abs(end - start);
+        if (difference > 180)
+        {
+            // We need to add on to one of the values.
+            if (end > start)
+            {
+                // We'll add it on to start...
+                start += 360;
+            }
+            else
+            {
+                // Add it on to end.
+                end += 360;
+            }
+        }
+
+        // Interpolate it.
+        float value = (start + ((end - start) * amount));
+
+        // Wrap it..
+        float rangeZero = 360;
+
+        if (value >= 0 && value <= 360)
+            return value;
+
+        return (value % rangeZero);
+    }
+
+    public static float MoveTowardsRotation(float start, float end, float degrees)
+    {
+        while (start < 0)
+            start += 360;
+        start %= 360;
+
+        while (end < 0)
+            end += 360;
+        end %= 360;
+
+        float difference = Math.Abs(end - start);
+        if (difference > 180)
+        {
+            // We need to add on to one of the values.
+            if (end > start)
+            {
+                // We'll add it on to start...
+                start += 360;
+            }
+            else
+            {
+                // Add it on to end.
+                end += 360;
+            }
+        }
+
+        // Interpolate it.
+        float value = MoveTowardsValue(start, end, degrees);
+
+        // Wrap it..
+        float rangeZero = 360;
+
+        if (value >= 0 && value <= 360)
+            return value;
+
+        return (value % rangeZero);
+    }
+
+    public static Vector3 MoveTowardsVector(Vector3 start, Vector3 end, float distanceToMove)
+    {
+        float dist = (end - start).magnitude;
+
+        if (dist <= distanceToMove)
+            return end;
+
+        return Vector3.Lerp(start, end, distanceToMove / dist);
     }
 }

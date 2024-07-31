@@ -19,7 +19,7 @@ public class ObjectPooler : Singleton<ObjectPooler>
     }
 
     [SerializeField] private SerializedDictionary<ObjectTypeEnum, SpawnableStruct> prefabs;
-    private Dictionary<Type, List<PoolableObject>> objects = new Dictionary<Type, List<PoolableObject>>();
+    private Dictionary<Type, List<IPoolableObject>> objects = new Dictionary<Type, List<IPoolableObject>>();
     private Dictionary<Type, ObjectTypeEnum> typeToEnumMap = new Dictionary<Type, ObjectTypeEnum>();
     private List<Type> validTypes = new List<Type>()
     {
@@ -35,7 +35,7 @@ public class ObjectPooler : Singleton<ObjectPooler>
         foreach (Type type in validTypes)
         {
             if (!objects.ContainsKey(type))
-                objects.Add(type, new List<PoolableObject>());
+                objects.Add(type, new List<IPoolableObject>());
 
             if (!typeToEnumMap.ContainsKey(type))
                 Debug.LogError($"typeToEnumMap is missing mapping for \"{type}\"");
@@ -48,7 +48,7 @@ public class ObjectPooler : Singleton<ObjectPooler>
     /// </summary>
     /// <typeparam name="T"></typeparam>
     /// <returns></returns>
-    public T GetFromPool<T>() where T : PoolableObject
+    public T GetFromPool<T>() where T : MonoBehaviour, IPoolableObject
     {
         Type type = typeof(T);
         ObjectTypeEnum typeToUse;
@@ -63,11 +63,12 @@ public class ObjectPooler : Singleton<ObjectPooler>
             return null;
         }
 
-        List<PoolableObject> listToUse = objects[type];
+        List<IPoolableObject> listToUse = objects[type];
         if (listToUse.Count > 0)
         {
             T objToReturn = (T)listToUse[^1];
             listToUse.RemoveAt(listToUse.Count - 1);
+            objToReturn.ResetData();
             objToReturn.gameObject.SetActive(true);
             return objToReturn;
         }
@@ -80,7 +81,7 @@ public class ObjectPooler : Singleton<ObjectPooler>
     /// </summary>
     /// <typeparam name="T"></typeparam>
     /// <param name="_objToAdd"></param>
-    public void AddToPool<T>(T _objToAdd) where T : PoolableObject
+    public void AddToPool<T>(T _objToAdd) where T : MonoBehaviour, IPoolableObject
     {
         Type type = typeof(T);
 
@@ -90,10 +91,9 @@ public class ObjectPooler : Singleton<ObjectPooler>
             return;
         }
 
-        List<PoolableObject> listToUse = objects[type];
+        List<IPoolableObject> listToUse = objects[type];
 
         listToUse.Add(_objToAdd);
-        _objToAdd.ResetData();
         _objToAdd.gameObject.SetActive(false);
     }
 }
