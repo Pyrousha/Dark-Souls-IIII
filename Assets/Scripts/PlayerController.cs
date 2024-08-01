@@ -38,8 +38,7 @@ public class PlayerController : Entity
     [Header("References")]
     [SerializeField] private CharacterController controller;
     [SerializeField] private Transform model;
-    [SerializeField] private Animator anim;
-    [SerializeField] private Transform heavyAttackPivot;
+    [SerializeField] private Hitbox heavyAttack;
     [Space(10)]
     [SerializeField] private UICanvas uiCanvas;
     [SerializeField] private StaminaSlider staminaSlider;
@@ -178,7 +177,7 @@ public class PlayerController : Entity
             t_nextStaminaRechargeTime = Mathf.Max(t_nextStaminaRechargeTime, t_attackEndTime + m_waitTimeAfterDash);
 
             //Set anim
-            anim.SetTrigger(ANIM_PARAM_HEAVY_ATTACK);
+            c_modelAnimator.SetTrigger(ANIM_PARAM_HEAVY_ATTACK);
         }
 
 
@@ -209,16 +208,16 @@ public class PlayerController : Entity
                     t_nextStaminaRechargeTime = Mathf.Max(t_nextStaminaRechargeTime, t_dashEndTime + m_waitTimeAfterDash);
 
                     //Set anim params
-                    anim.SetTrigger(ANIM_PARAM_DASH_TRIGGER);
+                    c_modelAnimator.SetTrigger(ANIM_PARAM_DASH_TRIGGER);
                     if (uiCanvas.IsLockedOn)
                     {
-                        anim.SetFloat(ANIM_PARAM_DASH_DIR_X, dashInputDirection.x);
-                        anim.SetFloat(ANIM_PARAM_DASH_DIR_Y, dashInputDirection.y);
+                        c_modelAnimator.SetFloat(ANIM_PARAM_DASH_DIR_X, dashInputDirection.x);
+                        c_modelAnimator.SetFloat(ANIM_PARAM_DASH_DIR_Y, dashInputDirection.y);
                     }
                     else
                     {
-                        anim.SetFloat(ANIM_PARAM_DASH_DIR_X, 0);
-                        anim.SetFloat(ANIM_PARAM_DASH_DIR_Y, 1);
+                        c_modelAnimator.SetFloat(ANIM_PARAM_DASH_DIR_X, 0);
+                        c_modelAnimator.SetFloat(ANIM_PARAM_DASH_DIR_Y, 1);
                     }
                 }
                 break;
@@ -294,7 +293,7 @@ public class PlayerController : Entity
 
         //Update anim parameters
         lastSpeedStatePercent = Utils.MoveTowardsValue(lastSpeedStatePercent, speedPercent, Time.deltaTime * maxSpeedState);
-        anim.SetFloat(ANIM_PARAM_SPEED_STATE_PERCENT, lastSpeedStatePercent);
+        c_modelAnimator.SetFloat(ANIM_PARAM_SPEED_STATE_PERCENT, lastSpeedStatePercent);
 
 
         //Update speed slider ui
@@ -334,8 +333,8 @@ public class PlayerController : Entity
         }
         #endregion
 
-        anim.SetBool(ANIM_PARAM_GROUNDED, isGrounded);
-        anim.SetBool(ANIM_PARAM_SPRINTING, isSprinting);
+        c_modelAnimator.SetBool(ANIM_PARAM_GROUNDED, isGrounded);
+        c_modelAnimator.SetBool(ANIM_PARAM_SPRINTING, isSprinting);
 
         if (isGrounded)
         {
@@ -383,10 +382,9 @@ public class PlayerController : Entity
             newForward = toEnemy.normalized;
         }
 
-        float currYRot = model.eulerAngles.y;
         float targYRot = Mathf.Atan2(newForward.x, newForward.z) * Mathf.Rad2Deg;
         Vector3 modelRot = model.eulerAngles;
-        modelRot.y = Utils.MoveTowardsRotation(currYRot, targYRot, modelYRotSpeed * Time.deltaTime);
+        modelRot.y = Utils.MoveTowardsRotation(modelRot.y, targYRot, modelYRotSpeed * Time.deltaTime);
         model.eulerAngles = modelRot;
         #endregion
 
@@ -395,17 +393,7 @@ public class PlayerController : Entity
 
     public void SpawnHeavyHitbox()
     {
-        Collider[] hitEntities =
-            Physics.OverlapBox(heavyAttackPivot.position, heavyAttackPivot.lossyScale / 2f, heavyAttackPivot.rotation, EnemyManager.Instance.HurtboxLayer, QueryTriggerInteraction.Collide);
-        if (hitEntities.Length > 0)
-        {
-            foreach (Collider collider in hitEntities)
-            {
-                Entity entity = collider.GetComponent<EntityHurtbox>().AttachedEntity;
-                if (entity.Team == EntityTeam.Enemy)
-                    entity.TakeDamage(heavyAttackSpeedblock.HeavyAttackDamage);
-            }
-        }
+        heavyAttack.EnableHitbox(t_attackEndTime - Time.time, heavyAttackSpeedblock.HeavyAttackDamage);
 
         currSpeedState = 0;
         speedSlider.SetSliderVisualState(currSpeedState);

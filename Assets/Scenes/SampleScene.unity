@@ -3556,8 +3556,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e8af97d127adfd949998420a24971990, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  m_event:
-    m_PersistentCalls:
+  m_events:
+  - m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 7314549640583806009}
         m_TargetAssemblyTypeName: PlayerController, Assembly-CSharp
@@ -4413,8 +4413,11 @@ GameObject:
   - component: {fileID: 1409275860}
   - component: {fileID: 1409275863}
   - component: {fileID: 1409275862}
-  m_Layer: 0
-  m_Name: HeavyAttackPivot
+  - component: {fileID: 1409275865}
+  - component: {fileID: 1409275864}
+  - component: {fileID: 1409275866}
+  m_Layer: 10
+  m_Name: HeavyAttackHitbox
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -4455,7 +4458,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 31321ba15b8f8eb4c954353edc038b1d, type: 2}
+  - {fileID: 2100000, guid: c16d637f6629d7143a80b1b32e6591ca, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -4485,6 +4488,70 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1409275859}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!114 &1409275864
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1409275859}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a6d9d4aead28c5342994cdc81013eef4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  showMeshRend: 1
+  damage: 0
+  dealsTemporaryHealth: 0
+  validTargets: 01000000
+--- !u!65 &1409275865
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1409275859}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 1
+  m_ProvidesContacts: 0
+  m_Enabled: 0
+  serializedVersion: 3
+  m_Size: {x: 1, y: 1, z: 1}
+  m_Center: {x: 0, y: 0, z: 0}
+--- !u!54 &1409275866
+Rigidbody:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1409275859}
+  serializedVersion: 4
+  m_Mass: 1
+  m_Drag: 0
+  m_AngularDrag: 0.05
+  m_CenterOfMass: {x: 0, y: 0, z: 0}
+  m_InertiaTensor: {x: 1, y: 1, z: 1}
+  m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ImplicitCom: 1
+  m_ImplicitTensor: 1
+  m_UseGravity: 0
+  m_IsKinematic: 0
+  m_Interpolate: 0
+  m_Constraints: 126
+  m_CollisionDetection: 0
 --- !u!1 &1417438908
 GameObject:
   m_ObjectHideFlags: 0
@@ -5338,9 +5405,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 78b8603b950801440bd14498ad8955cf, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  <HurtboxLayer>k__BackingField:
-    serializedVersion: 2
-    m_Bits: 256
+  uiCanvas: {fileID: 1497657363}
 --- !u!1 &1691500516
 GameObject:
   m_ObjectHideFlags: 0
@@ -7336,14 +7401,14 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   <Team>k__BackingField: 0
+  c_modelAnimator: {fileID: 1220954457}
   startAtMaxHp: 1
   MaxHp: 400
   <EnemyHealthbar>k__BackingField: {fileID: 0}
   playerHealthbar: {fileID: 1451149526}
   controller: {fileID: 8745161710568652358}
   model: {fileID: 1220954456}
-  anim: {fileID: 1220954457}
-  heavyAttackPivot: {fileID: 1409275860}
+  heavyAttack: {fileID: 1409275864}
   uiCanvas: {fileID: 1497657363}
   staminaSlider: {fileID: 7391214984375017105}
   speedSlider: {fileID: 585058156}

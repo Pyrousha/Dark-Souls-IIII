@@ -14,7 +14,7 @@ public class Enemy : Entity, IPoolableObject
     {
         if (playerHealthbar == null)
         {
-            EnemyManager.Instance.AddToEnemyList(this);
+            EnemyManager.Instance.OnEnemySpawned(this);
             EnemyHealthbar = ObjectPooler.Instance.GetFromPool<EnemyHealthbar>();
         }
 

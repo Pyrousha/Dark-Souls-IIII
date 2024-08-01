@@ -5,11 +5,13 @@ public class Entity : MonoBehaviour
     public enum EntityTeam
     {
         Player,
-        Enemy
+        Enemy,
+        NPC
     }
 
     [field: Header("Entity Values")]
     [field: SerializeField] public EntityTeam Team { get; protected set; }
+    [SerializeField] protected Animator c_modelAnimator;
 
     public bool IsHpMax => (MaxHp == currHp);
     [SerializeField] private bool startAtMaxHp = true;
@@ -84,10 +86,11 @@ public class Entity : MonoBehaviour
         if (IsDead)
         {
             //Do die logic
+            c_modelAnimator.SetTrigger("Die");
             if (c_Enemy != null)
             {
-                EnemyManager.Instance.RemoveFromEnemyList(c_Enemy);
-                ObjectPooler.Instance.AddToPool(c_Enemy);
+                EnemyManager.Instance.OnEnemyKilled(c_Enemy);
+                //ObjectPooler.Instance.AddToPool(c_Enemy);
                 ObjectPooler.Instance.AddToPool(EnemyHealthbar);
             }
         }
@@ -101,7 +104,7 @@ public class Entity : MonoBehaviour
         if (isEnemy)
         {
             EnemyHealthbar.UpdateUI((float)currTempHp / MaxHp, (float)currHp / MaxHp);
-            EnemyManager.Instance.AddToEnemyList(c_Enemy);
+            EnemyManager.Instance.OnEnemySpawned(c_Enemy);
         }
         else
             playerHealthbar.UpdateUI((float)currHp / MaxHp);

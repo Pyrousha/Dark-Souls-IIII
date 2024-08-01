@@ -26,11 +26,12 @@ public class UICanvas : MonoBehaviour
         LockingOn,
         Locked
     }
-
     public LockonStateEnum LockonState { get; private set; } = LockonStateEnum.Unlocked;
     private float lockedOnCameraAngleX;
 
     private Routine lockonRoutine;
+
+    private Vector3 lastLockedonEnemyPosition;
 
     private void Start()
     {
@@ -38,14 +39,17 @@ public class UICanvas : MonoBehaviour
 
         lockedOnCameraAngleX = cameraPivot.eulerAngles.x;
 
-        lockonRect.gameObject.SetActive(LockonState != LockonStateEnum.Unlocked);
+        Color newColor = lockonImage.color;
+        newColor.a = 0;
+        lockonImage.color = newColor;
     }
 
     IEnumerator StartLockon()
     {
-        float startingRotX = cameraPivot.eulerAngles.x;
-        float startingRotY = cameraPivot.eulerAngles.y;
+        float startingCamRotX = cameraPivot.eulerAngles.x;
+        float startingCamRotY = cameraPivot.eulerAngles.y;
         float startingAlpha = lockonImage.color.a;
+        Vector3 newIconRot = lockonImage.transform.rotation.eulerAngles;
 
         yield return Tween.Float(0, 1, (t) =>
         {
@@ -54,13 +58,43 @@ public class UICanvas : MonoBehaviour
             newColor.a = Mathf.Lerp(startingAlpha, 1, t);
             lockonImage.color = newColor;
 
+            //Set rotation and scale
+            lockonImage.transform.localScale = Vector3.one * t;
+            newIconRot.z = Mathf.Lerp(0, -360, t);
+            lockonImage.transform.eulerAngles = newIconRot;
+
             Vector3 cameraRotation = cameraPivot.eulerAngles;
-            cameraRotation.x = Utils.LerpDegrees(startingRotX, lockedOnCameraAngleX, t);
-            cameraRotation.y = Utils.LerpDegrees(startingRotY, GetCamYRot(), t);
+            cameraRotation.x = Utils.LerpDegrees(startingCamRotX, lockedOnCameraAngleX, t);
+            cameraRotation.y = Utils.LerpDegrees(startingCamRotY, GetCamYRot(), t);
             cameraPivot.eulerAngles = cameraRotation;
-        }, lockonDuration).Ease(Curve.CubeInOut);
+        }, lockonDuration * (1 - startingAlpha)).Ease(Curve.CubeInOut);
 
         LockonState = LockonStateEnum.Locked;
+    }
+
+    IEnumerator EndLockon()
+    {
+        float startingAlpha = lockonImage.color.a;
+        Vector3 newIconRot = lockonImage.transform.rotation.eulerAngles;
+
+        if (startingAlpha > 0)
+        {
+            yield return Tween.Float(startingAlpha, 0, (t) =>
+            {
+                //Update position
+                SetUIPositionToWorldPosition(lockonRect, lastLockedonEnemyPosition);
+
+                //Set color
+                Color newColor = lockonImage.color;
+                newColor.a = t;
+                lockonImage.color = newColor;
+
+                //Set rotation and scale
+                lockonImage.transform.localScale = Vector3.one * t;
+                newIconRot.z = Mathf.Lerp(0, -360, t);
+                lockonImage.transform.eulerAngles = newIconRot;
+            }, lockonDuration * (startingAlpha)).Ease(Curve.CubeInOut);
+        }
     }
 
     /// <summary>
@@ -95,22 +129,6 @@ public class UICanvas : MonoBehaviour
 
         float currAngle = cameraPivot.eulerAngles.y;
         return Utils.MoveTowardsRotation(currAngle, newAngle, Time.deltaTime * lockonCamSpinSpeed);
-    }
-
-    IEnumerator EndLockon()
-    {
-        float startingAlpha = lockonImage.color.a;
-
-        if (startingAlpha > 0)
-        {
-            yield return Tween.Float(startingAlpha, 0, (t) =>
-            {
-                //Set color
-                Color newColor = lockonImage.color;
-                newColor.a = t;
-                lockonImage.color = newColor;
-            }, lockonDuration * (startingAlpha)).Ease(Curve.CubeInOut);
-        }
     }
 
     // Update is called once per frame
@@ -168,23 +186,19 @@ public class UICanvas : MonoBehaviour
         }
 
         //Set position of lockon reticle
-        if (LockonState == LockonStateEnum.LockingOn)
+        switch (LockonState)
         {
-            if (GetEnemyLockonPivotPos(out Vector3 pos))
-                SetUIPositionToWorldPosition(lockonRect, pos);
-            else
-                Helper_EndLockon();
-        }
-        else if (LockonState == LockonStateEnum.Locked)
-        {
-            Vector3 cameraAngles = cameraPivot.eulerAngles;
-            cameraAngles.y = GetCamYRot(true);
-            cameraPivot.eulerAngles = cameraAngles;
+            case LockonStateEnum.LockingOn:
+                SetUIPositionToWorldPosition(lockonRect, LockedonEnemy.LockonPivot.position);
+                break;
 
-            if (GetEnemyLockonPivotPos(out Vector3 pos))
-                SetUIPositionToWorldPosition(lockonRect, pos);
-            else
-                Helper_EndLockon();
+            case LockonStateEnum.Locked:
+                Vector3 cameraAngles = cameraPivot.eulerAngles;
+                cameraAngles.y = GetCamYRot(true);
+                cameraPivot.eulerAngles = cameraAngles;
+
+                SetUIPositionToWorldPosition(lockonRect, LockedonEnemy.LockonPivot.position);
+                break;
         }
 
         //Set position of healthbars
@@ -201,14 +215,16 @@ public class UICanvas : MonoBehaviour
 
             SetUIPositionToWorldPosition(enemy.EnemyHealthbar.C_RectTransform, enemy.HPBarPivot.position, true);
         }
+    }
 
-        void Helper_EndLockon()
-        {
-            lockonRoutine.Stop();
-            lockonRoutine = Routine.Start(this, EndLockon());
-            LockonState = LockonStateEnum.Unlocked;
-            LockedonEnemy = null;
-        }
+    private void Helper_EndLockon()
+    {
+        lockonRoutine.Stop();
+        LockonState = LockonStateEnum.Unlocked;
+        lastLockedonEnemyPosition = LockedonEnemy.LockonPivot.position;
+        LockedonEnemy = null;
+
+        lockonRoutine = Routine.Start(this, EndLockon());
     }
 
     private void SetUIPositionToWorldPosition(RectTransform _uiObject, Vector3 _worldObjectPos, bool disableIfBlockedByTerrain = false)
@@ -236,5 +252,14 @@ public class UICanvas : MonoBehaviour
 
         //now you can set the position of the ui element
         _uiObject.anchoredPosition = WorldObject_ScreenPosition;
+    }
+
+    public void OnEnemyKilled(Enemy enemy)
+    {
+        if (LockedonEnemy == enemy)
+        {
+            //Locked-on enemy was just killed, end lockon
+            Helper_EndLockon();
+        }
     }
 }

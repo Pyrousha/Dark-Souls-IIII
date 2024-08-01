@@ -3,10 +3,10 @@ using UnityEngine.Events;
 
 public class AnimEventPasser : MonoBehaviour
 {
-    [SerializeField] private UnityEvent m_event;
+    [SerializeField] private UnityEvent[] m_events;
 
-    public void DoEvent()
+    public void DoEvent(int index)
     {
-        m_event?.Invoke();
+        m_events[index]?.Invoke();
     }
 }

@@ -3,19 +3,20 @@ using UnityEngine;
 
 public class EnemyManager : Singleton<EnemyManager>
 {
-    [field: SerializeField] public LayerMask HurtboxLayer { get; private set; }
+    [SerializeField] private UICanvas uiCanvas;
 
     public List<Enemy> AliveEnemies { get; private set; } = new List<Enemy>();
 
-    public void AddToEnemyList(Enemy _enemy)
+    public void OnEnemySpawned(Enemy _enemy)
     {
         if (!AliveEnemies.Contains(_enemy))
             AliveEnemies.Add(_enemy);
     }
 
-    public void RemoveFromEnemyList(Enemy _enemy)
+    public void OnEnemyKilled(Enemy _enemy)
     {
         AliveEnemies.Remove(_enemy);
+        uiCanvas.OnEnemyKilled(_enemy);
     }
 
     public Enemy GetClosestEnemy(Vector3 _playerPos)
