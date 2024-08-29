@@ -7,6 +7,7 @@ using static Entity;
 public class Hitbox : MonoBehaviour
 {
     [SerializeField] private bool showMeshRend;
+    [SerializeField] private bool enableOnStart = false;
     [Space(10)]
     [SerializeField] private int damage;
     [SerializeField] private bool dealsTemporaryHealth;
@@ -34,6 +35,9 @@ public class Hitbox : MonoBehaviour
             if (c_meshRenderer != null)
                 c_meshRenderer.enabled = false;
         }
+
+        if (enableOnStart)
+            EnableHitbox(99999999999);
     }
 
     private void Update()
@@ -63,7 +67,7 @@ public class Hitbox : MonoBehaviour
             c_meshRenderer.enabled = true;
     }
 
-    private void DisableHitbox()
+    public void DisableHitbox()
     {
         hitboxActive = false;
         c_collider.enabled = false;

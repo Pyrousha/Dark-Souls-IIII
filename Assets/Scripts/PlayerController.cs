@@ -504,4 +504,9 @@ public class PlayerController : Entity
         //No walls hit
         camTransform.position = cameraPivot.position - cameraPivot.forward * maxCamDistance;
     }
+
+    protected override void OnDie()
+    {
+        Debug.Log("YOU DIED");
+    }
 }

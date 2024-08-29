@@ -1,6 +1,6 @@
 ﻿using UnityEngine;
 
-public class Entity : MonoBehaviour
+public abstract class Entity : MonoBehaviour
 {
     public enum EntityTeam
     {
@@ -85,6 +85,8 @@ public class Entity : MonoBehaviour
 
         if (IsDead)
         {
+            OnDie();
+
             //Do die logic
             c_modelAnimator.SetTrigger("Die");
             if (c_Enemy != null)
@@ -95,6 +97,8 @@ public class Entity : MonoBehaviour
             }
         }
     }
+
+    protected abstract void OnDie();
 
     protected void FullHeal()
     {
