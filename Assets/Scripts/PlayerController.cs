@@ -6,7 +6,10 @@ public class PlayerController : Entity
     {
         Idle,
         Dashing,
-        Attacking
+        Attacking,
+        Parrying,
+        HitStun,
+        Dead
     }
     private PlayerStateEnum state;
 
@@ -76,6 +79,8 @@ public class PlayerController : Entity
     [SerializeField] private float m_waitTimeAfterDash;
     [Space(5)]
     [SerializeField] private float m_heavyAttackDuration;
+    [Space(5)]
+    [SerializeField] private float m_parryWalkSpeedMultiplier;
 
     //Attack
     private float attackStartTime;
@@ -104,6 +109,9 @@ public class PlayerController : Entity
     private float currDashingSpeed;
     private Vector2 dashInputDirection;
 
+    //Parry
+    private bool isParrying;
+
     //Movement
     private Vector3 currVelocity;
     private bool isGrounded;
@@ -123,6 +131,7 @@ public class PlayerController : Entity
     private int ANIM_PARAM_DASH_DIR_X = Animator.StringToHash("DashDirX");
     private int ANIM_PARAM_DASH_DIR_Y = Animator.StringToHash("DashDirY");
     private int ANIM_PARAM_HEAVY_ATTACK = Animator.StringToHash("HeavyAttack");
+    private int ANIM_PARAM_PARRY = Animator.StringToHash("Parry");
 
     private new void Awake()
     {
@@ -150,36 +159,51 @@ public class PlayerController : Entity
         return _inputDir.y * forwardDir + _inputDir.x * rightDir;
     }
 
+    public void OnAnimEnded()
+    {
+        state = PlayerStateEnum.Idle;
+        isParrying = false;
+    }
+
     private void Update()
     {
         GroundCheck();
 
-        //Start Heavy Attack
-        if (isGrounded && InputHandler.Instance.HeavyAttack.Down && currSpeedState >= 1
-            && (state == PlayerStateEnum.Idle || state == PlayerStateEnum.Dashing))
+        if (state == PlayerStateEnum.Idle || state == PlayerStateEnum.Dashing && isGrounded)
         {
-            //Set velocity
-            float statePercent = ((int)currSpeedState) / 3f;
-            heavyAttackSpeedblock.SetValues_Lerp(lowSpeedblock, highSpeedblock, statePercent);
-            if (InputHandler.Instance.PressingDirection && !uiCanvas.IsLockedOn)
-                attackInputDirection = InputHandler.Instance.MoveXZ.normalized;
-            else
-                attackInputDirection = Vector2.up;
-            currAttackScootingSpeed = heavyAttackSpeedblock.DashStartSpeed;
-            currVelocity = ConvertInputDirToWorldDir(attackInputDirection) * heavyAttackSpeedblock.DashStartSpeed;
+            if (InputHandler.Instance.Parry.Down)
+            {
+                state = PlayerStateEnum.Parrying;
+                isParrying = true;
 
-            //Set state vars and timers
-            attackStartTime = Time.time;
-            state = PlayerStateEnum.Attacking;
-            t_attackScootEndTime = Time.time + m_dashDuration;
-            t_attackEndTime = Time.time + m_heavyAttackDuration;
-            t_nextSpeedDecreaseTime = Mathf.Max(t_nextSpeedDecreaseTime, t_attackEndTime + m_waitTimeAfterDash);
-            t_nextStaminaRechargeTime = Mathf.Max(t_nextStaminaRechargeTime, t_attackEndTime + m_waitTimeAfterDash);
+                c_modelAnimator.SetTrigger(ANIM_PARAM_PARRY);
+            }
 
-            //Set anim
-            c_modelAnimator.SetTrigger(ANIM_PARAM_HEAVY_ATTACK);
+            //Start Heavy Attack
+            else if (InputHandler.Instance.HeavyAttack.Down && currSpeedState >= 1)
+            {
+                //Set velocity
+                float statePercent = ((int)currSpeedState) / 3f;
+                heavyAttackSpeedblock.SetValues_Lerp(lowSpeedblock, highSpeedblock, statePercent);
+                if (InputHandler.Instance.PressingDirection && !uiCanvas.IsLockedOn)
+                    attackInputDirection = InputHandler.Instance.MoveXZ.normalized;
+                else
+                    attackInputDirection = Vector2.up;
+                currAttackScootingSpeed = heavyAttackSpeedblock.DashStartSpeed;
+                currVelocity = ConvertInputDirToWorldDir(attackInputDirection) * heavyAttackSpeedblock.DashStartSpeed;
+
+                //Set state vars and timers
+                attackStartTime = Time.time;
+                state = PlayerStateEnum.Attacking;
+                t_attackScootEndTime = Time.time + m_dashDuration;
+                t_attackEndTime = Time.time + m_heavyAttackDuration;
+                t_nextSpeedDecreaseTime = Mathf.Max(t_nextSpeedDecreaseTime, t_attackEndTime + m_waitTimeAfterDash);
+                t_nextStaminaRechargeTime = Mathf.Max(t_nextStaminaRechargeTime, t_attackEndTime + m_waitTimeAfterDash);
+
+                //Set anim
+                c_modelAnimator.SetTrigger(ANIM_PARAM_HEAVY_ATTACK);
+            }
         }
-
 
         switch (state)
         {
@@ -223,12 +247,7 @@ public class PlayerController : Entity
                 break;
 
             case PlayerStateEnum.Dashing:
-                if (Time.time >= t_dashEndTime)
-                {
-                    //End Dash
-                    state = PlayerStateEnum.Idle;
-                }
-                else
+                if (Time.time < t_dashEndTime)
                 {
                     //Decelerate
                     currDashingSpeed = Mathf.Lerp(dashSpeedblock.DashStartSpeed, dashSpeedblock.DashEndSpeed,
@@ -238,13 +257,6 @@ public class PlayerController : Entity
                 break;
 
             case PlayerStateEnum.Attacking:
-                if (Time.time >= t_attackEndTime)
-                {
-                    //End Attack
-                    state = PlayerStateEnum.Idle;
-                    break;
-                }
-
                 if (Time.time <= t_attackScootEndTime)
                 {
                     //Decelerate
@@ -315,7 +327,7 @@ public class PlayerController : Entity
         #endregion
 
         #region Player Movement
-        if (state == PlayerStateEnum.Idle)
+        if (state == PlayerStateEnum.Idle || state == PlayerStateEnum.Parrying)
         {
             Vector3 forwardDir = cameraPivot.forward;
             forwardDir.y = 0;
@@ -329,7 +341,10 @@ public class PlayerController : Entity
             else
                 worldInput = Vector3.zero;
 
-            HandleMovement(worldInput);
+            if (state == PlayerStateEnum.Parrying)
+                HandleMovement(worldInput * m_parryWalkSpeedMultiplier);
+            else
+                HandleMovement(worldInput);
         }
         #endregion
 
@@ -391,6 +406,11 @@ public class PlayerController : Entity
         MoveCameraOutOfWall();
     }
 
+    public void OnParryEnded()
+    {
+        isParrying = false;
+    }
+
     public void SpawnHeavyHitbox()
     {
         heavyAttack.EnableHitbox(t_attackEndTime - Time.time, heavyAttackSpeedblock.HeavyAttackDamage);
@@ -405,7 +425,6 @@ public class PlayerController : Entity
 
         Vector3 modifiedVelocity_noGrav = currVelocity;
         modifiedVelocity_noGrav.y = 0;
-
 
         Vector3 targetVelocity = _worldInput * sprintSpeedblock.MaxSpeed;
 
@@ -505,8 +524,26 @@ public class PlayerController : Entity
         camTransform.position = cameraPivot.position - cameraPivot.forward * maxCamDistance;
     }
 
+    public override void TakeDamage(int _damageToTake)
+    {
+        if (IsDead)
+            return;
+
+        if (isParrying && state == PlayerStateEnum.Parrying)
+        {
+            //Do parry instead of dealing damage
+            SFXManager.Instance.Play(SFXManager.AudioTypeEnum.Player_Parry);
+        }
+        else
+        {
+            base.TakeDamage(_damageToTake);
+            SFXManager.Instance.Play(SFXManager.AudioTypeEnum.Player_OnHit);
+        }
+    }
+
     protected override void OnDie()
     {
         Debug.Log("YOU DIED");
+        state = PlayerStateEnum.Dead;
     }
 }

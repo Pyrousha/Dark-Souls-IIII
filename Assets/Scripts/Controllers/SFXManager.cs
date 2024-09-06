@@ -12,21 +12,20 @@ public class SFXManager : Singleton<SFXManager>
 
     public enum AudioTypeEnum
     {
-        FULLCHARGE,
-        ENTER_BOOM,
-        EXIT_BOOM
+        Player_OnHit,
+        Player_Parry,
+        Enemy_Swing
     }
 
     [SerializeField] private AudioSource source;
-    [SerializeField]
-    private SerializedDictionary<AudioTypeEnum, SFXReference> clips;
-
+    [SerializeField] private SerializedDictionary<AudioTypeEnum, SFXReference> clips;
 
     public void Play(AudioTypeEnum type)
     {
         SFXReference clipToPlay = clips[type];
 
-        source.volume = SaveData.CurrSaveData.SfxVol * clipToPlay.VolumeMultiplier;
+        //source.volume = SaveData.CurrSaveData.SfxVol * clipToPlay.VolumeMultiplier;
+        source.volume = clipToPlay.VolumeMultiplier;
         source.PlayOneShot(clipToPlay.Clip);
     }
 }

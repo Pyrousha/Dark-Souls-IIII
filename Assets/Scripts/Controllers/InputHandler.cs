@@ -15,7 +15,8 @@ public class InputHandler : Singleton<InputHandler>
         HeavyAttack = 4,
         LightAttack = 5,
         RangedAttack = 6,
-        NUM_BUTTONS = 7
+        Parry = 7,
+        NUM_BUTTONS = 8
     }
 
     public bool PressingDirection { get; private set; }
@@ -61,6 +62,10 @@ public class InputHandler : Singleton<InputHandler>
     public ButtonState RangedAttack
     {
         get { return buttons[(int)ButtonIndices.RangedAttack]; }
+    }
+    public ButtonState Parry
+    {
+        get { return buttons[(int)ButtonIndices.Parry]; }
     }
 
     private int buttonCount = (int)ButtonIndices.NUM_BUTTONS;
@@ -131,6 +136,10 @@ public class InputHandler : Singleton<InputHandler>
     public void CTX_RangedAttack(InputAction.CallbackContext _ctx)
     {
         buttons[(int)ButtonIndices.RangedAttack].Set(_ctx);
+    }
+    public void CTX_Parry(InputAction.CallbackContext _ctx)
+    {
+        buttons[(int)ButtonIndices.Parry].Set(_ctx);
     }
 
 

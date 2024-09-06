@@ -83,6 +83,7 @@ public class Enemy : Entity, IPoolableObject
 
     public void StartHitbox()
     {
+        SFXManager.Instance.Play(SFXManager.AudioTypeEnum.Enemy_Swing);
         hitbox.EnableHitbox(9999);
     }
 

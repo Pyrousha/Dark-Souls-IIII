@@ -54,7 +54,7 @@ public abstract class Entity : MonoBehaviour
         EnemyHealthbar.UpdateUI((float)currTempHp / MaxHp, (float)currHp / MaxHp);
     }
 
-    public void TakeDamage(int _damageToTake)
+    public virtual void TakeDamage(int _damageToTake)
     {
         if (IsDead)
             return;
