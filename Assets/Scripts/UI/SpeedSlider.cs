@@ -18,4 +18,12 @@ public class SpeedSlider : MonoBehaviour
 
         sliderFill.color = colors[Mathf.FloorToInt(_speedState)];
     }
+
+    public void SetSliderVisualState_Percent(float _percent)
+    {
+        _percent = Mathf.Clamp(_percent, 0f, 1f);
+        slider.value = _percent;
+
+        sliderFill.color = colors[Mathf.FloorToInt(_percent * 3)];
+    }
 }

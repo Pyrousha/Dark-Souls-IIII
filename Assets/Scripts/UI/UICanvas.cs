@@ -128,7 +128,7 @@ public class UICanvas : MonoBehaviour
             return newAngle;
 
         float currAngle = cameraPivot.eulerAngles.y;
-        return Utils.MoveTowardsRotation(currAngle, newAngle, Time.deltaTime * lockonCamSpinSpeed);
+        return Utils.MoveTowardsRotation_Degrees(currAngle, newAngle, Time.deltaTime * lockonCamSpinSpeed);
     }
 
     // Update is called once per frame

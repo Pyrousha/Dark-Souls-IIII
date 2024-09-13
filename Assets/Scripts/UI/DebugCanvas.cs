@@ -1,5 +1,6 @@
 using TMPro;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public class DebugCanvas : Singleton<DebugCanvas>
 {
@@ -8,5 +9,10 @@ public class DebugCanvas : Singleton<DebugCanvas>
     public void ShowText(string _text)
     {
         textToPrint.text = _text;
+    }
+
+    public void ResetScene()
+    {
+        SceneManager.LoadScene(0);
     }
 }

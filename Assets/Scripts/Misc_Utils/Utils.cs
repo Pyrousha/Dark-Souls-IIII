@@ -14,12 +14,12 @@ public static class Utils
     /// <returns></returns>
     public static float Remap(float _value, float _currentMin, float _currentMax, float _newMin, float _newMax)
     {
-        float currRange = _currentMax - _currentMin;
-        float currAmountFromMin = _value - _currentMin;
-        float percentFromMin = currAmountFromMin / currRange;
+        float startRange = _currentMax - _currentMin;
+        float startOffsetFromMin = _value - _currentMin;
+        float percent = startOffsetFromMin / startRange;
 
-        float targRange = _newMax - _newMin;
-        return _newMin + percentFromMin * targRange;
+        float val = Mathf.Lerp(_newMin, _newMax, percent);
+        return val;
     }
 
     public static float MoveTowardsValue(float _currValue, float _targetValue, float _amountToMoveThisIteration)
@@ -65,7 +65,7 @@ public static class Utils
         return (value % rangeZero);
     }
 
-    public static float MoveTowardsRotation(float start, float end, float degrees)
+    public static float MoveTowardsRotation_Degrees(float start, float end, float degrees)
     {
         while (start < 0)
             start += 360;
@@ -98,6 +98,44 @@ public static class Utils
         float rangeZero = 360;
 
         if (value >= 0 && value <= 360)
+            return value;
+
+        return (value % rangeZero);
+    }
+
+    public static float MoveTowardsRotation_Radians(float start, float end, float radians)
+    {
+        while (start < 0)
+            start += Mathf.PI * 2;
+        start %= Mathf.PI * 2;
+
+        while (end < 0)
+            end += Mathf.PI * 2;
+        end %= Mathf.PI * 2;
+
+        float difference = Math.Abs(end - start);
+        if (difference > Mathf.PI)
+        {
+            // We need to add on to one of the values.
+            if (end > start)
+            {
+                // We'll add it on to start...
+                start += Mathf.PI * 2;
+            }
+            else
+            {
+                // Add it on to end.
+                end += Mathf.PI * 2;
+            }
+        }
+
+        // Interpolate it.
+        float value = MoveTowardsValue(start, end, radians);
+
+        // Wrap it..
+        float rangeZero = Mathf.PI * 2;
+
+        if (value >= 0 && value <= Mathf.PI * 2)
             return value;
 
         return (value % rangeZero);
