@@ -6885,7 +6885,7 @@ PrefabInstance:
     - target: {fileID: 639418778819709664, guid: a040c0d4a75878d41baa1d4a52f9dbc4,
         type: 3}
       propertyPath: fovChangeForSpeed.m_Curve.Array.size
-      value: 4
+      value: 3
       objectReference: {fileID: 0}
     - target: {fileID: 639418778819709664, guid: a040c0d4a75878d41baa1d4a52f9dbc4,
         type: 3}
@@ -6895,7 +6895,7 @@ PrefabInstance:
     - target: {fileID: 639418778819709664, guid: a040c0d4a75878d41baa1d4a52f9dbc4,
         type: 3}
       propertyPath: fovChangeForSpeed.m_Curve.Array.data[2].time
-      value: 0.5
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 639418778819709664, guid: a040c0d4a75878d41baa1d4a52f9dbc4,
         type: 3}
@@ -6910,7 +6910,7 @@ PrefabInstance:
     - target: {fileID: 639418778819709664, guid: a040c0d4a75878d41baa1d4a52f9dbc4,
         type: 3}
       propertyPath: fovChangeForSpeed.m_Curve.Array.data[2].value
-      value: 0.5
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 639418778819709664, guid: a040c0d4a75878d41baa1d4a52f9dbc4,
         type: 3}
@@ -6925,12 +6925,17 @@ PrefabInstance:
     - target: {fileID: 639418778819709664, guid: a040c0d4a75878d41baa1d4a52f9dbc4,
         type: 3}
       propertyPath: fovChangeForSpeed.m_Curve.Array.data[1].inSlope
-      value: 0
+      value: -0
       objectReference: {fileID: 0}
     - target: {fileID: 639418778819709664, guid: a040c0d4a75878d41baa1d4a52f9dbc4,
         type: 3}
       propertyPath: fovChangeForSpeed.m_Curve.Array.data[2].inSlope
-      value: 2.242902
+      value: 1.3333334
+      objectReference: {fileID: 0}
+    - target: {fileID: 639418778819709664, guid: a040c0d4a75878d41baa1d4a52f9dbc4,
+        type: 3}
+      propertyPath: fovChangeForSpeed.m_Curve.Array.data[3].inSlope
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 639418778819709664, guid: a040c0d4a75878d41baa1d4a52f9dbc4,
         type: 3}
@@ -6945,17 +6950,17 @@ PrefabInstance:
     - target: {fileID: 639418778819709664, guid: a040c0d4a75878d41baa1d4a52f9dbc4,
         type: 3}
       propertyPath: fovChangeForSpeed.m_Curve.Array.data[1].outSlope
-      value: 0
+      value: 1.3333334
       objectReference: {fileID: 0}
     - target: {fileID: 639418778819709664, guid: a040c0d4a75878d41baa1d4a52f9dbc4,
         type: 3}
       propertyPath: fovChangeForSpeed.m_Curve.Array.data[2].inWeight
-      value: 0.25687045
+      value: 0.38406304
       objectReference: {fileID: 0}
     - target: {fileID: 639418778819709664, guid: a040c0d4a75878d41baa1d4a52f9dbc4,
         type: 3}
       propertyPath: fovChangeForSpeed.m_Curve.Array.data[2].outSlope
-      value: 2.242902
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 639418778819709664, guid: a040c0d4a75878d41baa1d4a52f9dbc4,
         type: 3}
@@ -6970,17 +6975,22 @@ PrefabInstance:
     - target: {fileID: 639418778819709664, guid: a040c0d4a75878d41baa1d4a52f9dbc4,
         type: 3}
       propertyPath: fovChangeForSpeed.m_Curve.Array.data[2].outWeight
-      value: 0.340843
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 639418778819709664, guid: a040c0d4a75878d41baa1d4a52f9dbc4,
         type: 3}
       propertyPath: fovChangeForSpeed.m_Curve.Array.data[1].tangentMode
-      value: 0
+      value: 69
       objectReference: {fileID: 0}
     - target: {fileID: 639418778819709664, guid: a040c0d4a75878d41baa1d4a52f9dbc4,
         type: 3}
       propertyPath: fovChangeForSpeed.m_Curve.Array.data[2].tangentMode
-      value: 0
+      value: 69
+      objectReference: {fileID: 0}
+    - target: {fileID: 639418778819709664, guid: a040c0d4a75878d41baa1d4a52f9dbc4,
+        type: 3}
+      propertyPath: fovChangeForSpeed.m_Curve.Array.data[3].tangentMode
+      value: 69
       objectReference: {fileID: 0}
     - target: {fileID: 639418778819709664, guid: a040c0d4a75878d41baa1d4a52f9dbc4,
         type: 3}
@@ -6990,7 +7000,7 @@ PrefabInstance:
     - target: {fileID: 639418778819709664, guid: a040c0d4a75878d41baa1d4a52f9dbc4,
         type: 3}
       propertyPath: fovChangeForSpeed.m_Curve.Array.data[2].weightedMode
-      value: 3
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 639418778819709664, guid: a040c0d4a75878d41baa1d4a52f9dbc4,
         type: 3}
